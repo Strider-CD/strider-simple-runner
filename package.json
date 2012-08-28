@@ -3,7 +3,7 @@
   "name": "strider-simple-worker",
   "description": "Simple in-process worker implementation for Strider",
   "version": "0.0.0",
-  "homepage": "http://github.com/niallo/strider-simple-worker",
+  "homepage": "http://github.com/Strider-CD/strider-simple-worker",
   "dependencies": {
     "gitane": "0.0.5",
     "step": "0.0.5",
