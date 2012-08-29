@@ -59,16 +59,20 @@ function registerEvents(emitter) {
 
     function updateStatus(evType, timeElapsed, opts) {
       var msg = {
-        userId:data.user._id.toString(),
+        userId:data.user_id,
         jobId:data.job_id,
         timeElapsed:timeElapsed,
         repoUrl:data.repo_config.url,
         stdout: opts.stdout || "",
         stderr: opts.stderr || "",
         stdmerged: opts.stdmerged || "",
-        deployExitcode:opts.deployExitCode || null,
-        testExitcode:opts.testExitCode || null,
         autodetectResult:opts.autodetectResult || null,
+      }
+      if (opts.testExitCode !== undefined) {
+        msg.testExitCode = opts.testExitCode
+      }
+      if (opts.deployExitCode !== undefined) {
+        msg.deployExitCode = opts.deployExitCode
       }
 
       emitter.emit(evType, msg)
@@ -122,10 +126,10 @@ function registerEvents(emitter) {
             console.log("interleavedBuffer length: %d", testProc.interleavedBuffer.length)
             var t2 = new Date()
             var elapsed = (t2.getTime() - t1.getTime()) / 1000
-            updateStatus(emitter, "queue.task_update", elapsed, {
-              stderr:preProc.stderrBuffer,
-              stdout:preProc.stdoutBuffer,
-              stdmerged:preProc.interleavedBuffer,
+            updateStatus("queue.task_complete", elapsed, {
+              stderr:testProc.stderrBuffer,
+              stdout:testProc.stdoutBuffer,
+              stdmerged:testProc.interleavedBuffer,
               testExitCode:exitCode,
               deployExitCode:null
             })
@@ -133,7 +137,7 @@ function registerEvents(emitter) {
         } else {
           var t2 = new Date()
           var elapsed = (t2.getTime() - t1.getTime()) / 1000
-          updateStatus(emitter, "queue.task_update", elapsed, {
+          updateStatus("queue.task_complete", elapsed, {
             stderr:preProc.stderrBuffer,
             stdout:preProc.stdoutBuffer,
             stdmerged:preProc.interleavedBuffer,
