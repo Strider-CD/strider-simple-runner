@@ -80,6 +80,10 @@ function registerEvents(emitter) {
       emitter.emit(evType, msg)
     }
 
+    var stderrBuffer = ""
+    var stdoutBuffer = ""
+    var stdmergedBuffer = ""
+
     function forkProc(t1, cwd, shell) {
       var split = shell.split(/\s+/)
       var cmd = split[0]
@@ -90,14 +94,16 @@ function registerEvents(emitter) {
 
       proc.stderrBuffer = ""
       proc.stdoutBuffer = ""
-      proc.interleavedBuffer = ""
+      proc.stdmergedBuffer = ""
 
       proc.stdout.setEncoding('utf8')
       proc.stderr.setEncoding('utf8')
 
       proc.stdout.on('data', function(buf) {
         proc.stdoutBuffer += buf
-        proc.interleavedBuffer += buf
+        proc.stdmergedBuffer += buf
+        stdoutBuffer += buf
+        stdmergedBuffer += buf
         var t2 = new Date()
         var elapsed = (t2.getTime() - t1.getTime()) / 1000
         updateStatus("queue.task_update", elapsed, {stdout:buf})
@@ -105,7 +111,9 @@ function registerEvents(emitter) {
 
       proc.stderr.on('data', function(buf) {
         proc.stderrBuffer += buf
-        proc.interleavedBuffer += buf
+        proc.stdmergedBuffer += buf
+        stderrBuffer += buf
+        stdmergedBuffer += buf
         var t2 = new Date()
         var elapsed = (t2.getTime() - t1.getTime()) / 1000
         updateStatus("queue.task_update", elapsed, {stderr:buf})
@@ -126,9 +134,9 @@ function registerEvents(emitter) {
             var t2 = new Date()
             var elapsed = (t2.getTime() - t1.getTime()) / 1000
             updateStatus("queue.task_complete", elapsed, {
-              stderr:testProc.stderrBuffer,
-              stdout:testProc.stdoutBuffer,
-              stdmerged:testProc.interleavedBuffer,
+              stderr:stderrBuffer,
+              stdout:stdoutBuffer,
+              stdmerged:stdmergedBuffer,
               testExitCode:exitCode,
               deployExitCode:null
             })
@@ -137,9 +145,9 @@ function registerEvents(emitter) {
           var t2 = new Date()
           var elapsed = (t2.getTime() - t1.getTime()) / 1000
           updateStatus("queue.task_complete", elapsed, {
-            stderr:preProc.stderrBuffer,
-            stdout:preProc.stdoutBuffer,
-            stdmerged:preProc.interleavedBuffer,
+            stderr:stderrBuffer,
+            stdout:stdoutBuffer,
+            stdmerged:stdmergedBuffer,
             testExitCode:exitCode,
             deployExitCode:null
           })
