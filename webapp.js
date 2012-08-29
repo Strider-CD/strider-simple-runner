@@ -49,77 +49,115 @@ var setupActions = []
 // if a function, this accepts a callback argument of signature function(err) which must be called.
 var teardownActions = []
 
-
 function registerEvents(emitter) {
 
-  function forkProc(cwd, shell) {
-    var split = shell.split(/\s+/)
-    var cmd = split[0]
-    var args = split.slice(1)
-    var env = process.env
-    env.PAAS_NAME = 'strider'
-    var proc = spawn(cmd, args, {cwd: cwd, env: env})
-
-    proc.stderrBuffer = ""
-    proc.stdoutBuffer = ""
-    proc.interleavedBuffer = ""
-
-    proc.stdout.setEncoding('utf8')
-    proc.stderr.setEncoding('utf8')
-
-    proc.stdout.on('data', function(data) {
-      proc.stdoutBuffer += data
-      proc.interleavedBuffer += data
-      console.log(data)
-      // XXX emit event
-    })
-
-    proc.stderr.on('data', function(data) {
-      proc.stderrBuffer += data
-      proc.interleavedBuffer += data
-      console.log(data)
-      // XXX emit event
-    })
-
-    return proc
-  }
-
-  function doTestRun(cwd, prepareCmd, testCmd) {
-    var preProc = forkProc(cwd, prepareCmd)
-    preProc.on('exit', function(exitCode) {
-      console.log("process exited with code: %d", exitCode)
-      if (exitCode === 0) {
-        // Preparatory phase completed OK - continue
-        var testProc = forkProc(cwd, testCmd)
-
-        testProc.on('exit', function(exitCode) {
-          console.log("tests exited with code: %d", exitCode)
-          console.log("interleavedBuffer length: %d", testProc.interleavedBuffer.length)
-          // XXX emit event
-        })
-      } else {
-        // XXX emit event
-
-      }
-    })
-  }
 
   // the queue.new_task event is primary way jobs are submitted
   //
 
-  emitter.on('queue.new_task', function(data) {
+  emitter.on('queue.new_job', function(data) {
+
+    function updateStatus(evType, timeElapsed, opts) {
+      var msg = {
+        userId:data.user._id.toString(),
+        jobId:data.job_id,
+        timeElapsed:timeElapsed,
+        repoUrl:data.repo_config.url,
+        stdout: opts.stdout || "",
+        stderr: opts.stderr || "",
+        stdmerged: opts.stdmerged || "",
+        deployExitcode:opts.deployExitCode || null,
+        testExitcode:opts.testExitCode || null,
+        autodetectResult:opts.autodetectResult || null,
+      }
+
+      emitter.emit(evType, msg)
+    }
+
+    function forkProc(t1, cwd, shell) {
+      var split = shell.split(/\s+/)
+      var cmd = split[0]
+      var args = split.slice(1)
+      var env = process.env
+      env.PAAS_NAME = 'strider'
+      var proc = spawn(cmd, args, {cwd: cwd, env: env})
+
+      proc.stderrBuffer = ""
+      proc.stdoutBuffer = ""
+      proc.interleavedBuffer = ""
+
+      proc.stdout.setEncoding('utf8')
+      proc.stderr.setEncoding('utf8')
+
+      proc.stdout.on('data', function(buf) {
+        proc.stdoutBuffer += buf
+        proc.interleavedBuffer += buf
+        var t2 = new Date()
+        var elapsed = (t2.getTime() - t1.getTime()) / 1000
+        updateStatus("queue.task_update", elapsed, {stdout:buf})
+      })
+
+      proc.stderr.on('data', function(buf) {
+        proc.stderrBuffer += buf
+        proc.interleavedBuffer += buf
+        var t2 = new Date()
+        var elapsed = (t2.getTime() - t1.getTime()) / 1000
+        updateStatus("queue.task_update", elapsed, {stderr:buf})
+      })
+
+      return proc
+    }
+
+    function doTestRun(cwd, prepareCmd, testCmd) {
+      var t1 = new Date()
+      var preProc = forkProc(t1, cwd, prepareCmd)
+      preProc.on('exit', function(exitCode) {
+        console.log("process exited with code: %d", exitCode)
+        if (exitCode === 0) {
+          // Preparatory phase completed OK - continue
+          var testProc = forkProc(t1, cwd, testCmd)
+
+          testProc.on('exit', function(exitCode) {
+            console.log("tests exited with code: %d", exitCode)
+            console.log("interleavedBuffer length: %d", testProc.interleavedBuffer.length)
+            var t2 = new Date()
+            var elapsed = (t2.getTime() - t1.getTime()) / 1000
+            updateStatus(emitter, "queue.task_update", elapsed, {
+              stderr:preProc.stderrBuffer,
+              stdout:preProc.stdoutBuffer,
+              stdmerged:preProc.interleavedBuffer,
+              testExitCode:exitCode,
+              deployExitCode:null
+            })
+          })
+        } else {
+          var t2 = new Date()
+          var elapsed = (t2.getTime() - t1.getTime()) / 1000
+          updateStatus(emitter, "queue.task_update", elapsed, {
+            stderr:preProc.stderrBuffer,
+            stdout:preProc.stdoutBuffer,
+            stdmerged:preProc.interleavedBuffer,
+            testExitCode:exitCode,
+            deployExitCode:null
+          })
+
+        }
+      })
+    }
+
     var dir = path.join(__dirname, '_work')
     console.log('new job')
     Step(
       function() {
-        exec('mkdir -p ' + dir, this)
+        // XXX: Support incremental builds at some point
+        exec('rm -rf ' + dir + ' ; mkdir -p ' + dir, this)
       },
       function(err) {
         if (err) throw err
         console.log("cloning %s", data.repo_ssh_url)
         gitane.run(dir, data.repo_config.privkey, 'git clone ' + data.repo_ssh_url, this)
       },
-      function(err) {
+      function(err, stderr, stdout) {
         if (err) throw err
         this.workingDir = path.join(dir, path.basename(data.repo_ssh_url.replace('.git', '')))
         console.log("checked out! running detection in %s", this.workingDir)
