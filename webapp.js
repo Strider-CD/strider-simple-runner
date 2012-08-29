@@ -67,6 +67,8 @@ function registerEvents(emitter) {
         stderr: opts.stderr || "",
         stdmerged: opts.stdmerged || "",
         autodetectResult:opts.autodetectResult || null,
+        testExitCode: null,
+        deployExitCode: null,
       }
       if (opts.testExitCode !== undefined) {
         msg.testExitCode = opts.testExitCode
@@ -113,7 +115,6 @@ function registerEvents(emitter) {
     }
 
     function doTestRun(cwd, prepareCmd, testCmd) {
-      var t1 = new Date()
       var preProc = forkProc(t1, cwd, prepareCmd)
       preProc.on('exit', function(exitCode) {
         console.log("process exited with code: %d", exitCode)
@@ -122,8 +123,6 @@ function registerEvents(emitter) {
           var testProc = forkProc(t1, cwd, testCmd)
 
           testProc.on('exit', function(exitCode) {
-            console.log("tests exited with code: %d", exitCode)
-            console.log("interleavedBuffer length: %d", testProc.interleavedBuffer.length)
             var t2 = new Date()
             var elapsed = (t2.getTime() - t1.getTime()) / 1000
             updateStatus("queue.task_complete", elapsed, {
@@ -151,6 +150,7 @@ function registerEvents(emitter) {
 
     var dir = path.join(__dirname, '_work')
     console.log('new job')
+    var t1 = new Date()
     Step(
       function() {
         // XXX: Support incremental builds at some point
@@ -159,12 +159,20 @@ function registerEvents(emitter) {
       function(err) {
         if (err) throw err
         console.log("cloning %s", data.repo_ssh_url)
+        var t2 = new Date()
+        var elapsed = (t2.getTime() - t1.getTime()) / 1000
+        var msg = "Starting git clone of repo at " + data.repo_ssh_url + "\n"
+        updateStatus("queue.task_update", elapsed, {stdout:msg, stdmerged:msg})
         gitane.run(dir, data.repo_config.privkey, 'git clone ' + data.repo_ssh_url, this)
       },
       function(err, stderr, stdout) {
         if (err) throw err
         this.workingDir = path.join(dir, path.basename(data.repo_ssh_url.replace('.git', '')))
-        console.log("checked out! running detection in %s", this.workingDir)
+        var t2 = new Date()
+        var elapsed = (t2.getTime() - t1.getTime()) / 1000
+        var msg = "Git clone complete\n"
+        updateStatus("queue.task_update", elapsed, {stdout:stdout, stderr:stderr, stdmerged:stdout+stderr})
+        updateStatus("queue.task_update", elapsed, {stdout:msg, stdmerged:msg})
         gumshoe.run(this.workingDir, detectionRules, this)
       },
       function(err, result) {
