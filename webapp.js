@@ -80,6 +80,7 @@ function registerEvents(emitter) {
       emitter.emit(evType, msg)
     }
 
+    // cross-process (per-job) output buffers
     var stderrBuffer = ""
     var stdoutBuffer = ""
     var stdmergedBuffer = ""
@@ -92,6 +93,7 @@ function registerEvents(emitter) {
       env.PAAS_NAME = 'strider'
       var proc = spawn(cmd, args, {cwd: cwd, env: env})
 
+      // per-process output buffers
       proc.stderrBuffer = ""
       proc.stdoutBuffer = ""
       proc.stdmergedBuffer = ""
