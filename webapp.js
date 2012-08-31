@@ -52,7 +52,7 @@ var teardownActions = []
 function registerEvents(emitter) {
 
 
-  // the queue.new_task event is primary way jobs are submitted
+  // the queue.new_job event is primary way jobs are submitted
   //
 
   emitter.on('queue.new_job', function(data) {
