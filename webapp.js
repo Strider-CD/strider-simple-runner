@@ -15,9 +15,9 @@ var Step = require('step')
 var DEFAULT_PROJECT_TYPE_RULES = [
 
   // Node
-  {filename:"package.json", grep:/express/i, language:"node.js", framework:"express", prepare:"npm install", test:"npm test"},
-  {filename:"package.json", grep:/connect/i, language:"node.js", framework:"connect", prepare:"npm install", test:"npm test"},
-  {filename:"package.json", exists:true, language:"node.js", framework:null, prepare:"npm install", test:"npm test"},
+  {filename:"package.json", grep:/express/i, language:"node.js", framework:"express", prepare:"npm install", test:"npm test", start:"npm start"},
+  {filename:"package.json", grep:/connect/i, language:"node.js", framework:"connect", prepare:"npm install", test:"npm test", start:"npm start"},
+  {filename:"package.json", exists:true, language:"node.js", framework:null, prepare:"npm install", test:"npm test", start:"npm start"},
   // Python
   {filename:"setup.py", grep:/pyramid/i, language:"python", framework:"pyramid"},
   {filename:"manage.py", grep:/django/i, language:"python", framework:"django"},
@@ -56,12 +56,24 @@ function registerEvents(emitter) {
   //
 
   emitter.on('queue.new_job', function(data) {
+    // cross-process (per-job) output buffers
+    var stderrBuffer = ""
+    var stdoutBuffer = ""
+    var stdmergedBuffer = ""
+    var dir = path.join(__dirname, '_work')
+    console.log('new job')
+    // Start the clock
+    var t1 = new Date()
 
-    function updateStatus(evType, timeElapsed, opts) {
+    // Emit a status update event. This can result in data being sent to the
+    // user's browser in realtime via socket.io.
+    function updateStatus(evType, opts) {
+      var t2 = new Date()
+      var elapsed = (t2.getTime() - t1.getTime()) / 1000
       var msg = {
         userId:data.user_id,
         jobId:data.job_id,
-        timeElapsed:timeElapsed,
+        timeElapsed:elapsed,
         repoUrl:data.repo_config.url,
         stdout: opts.stdout || "",
         stderr: opts.stderr || "",
@@ -80,12 +92,16 @@ function registerEvents(emitter) {
       emitter.emit(evType, msg)
     }
 
-    // cross-process (per-job) output buffers
-    var stderrBuffer = ""
-    var stdoutBuffer = ""
-    var stdmergedBuffer = ""
+    // Insert a synthetic (non job-generated) output message
+    // This automatically prefixes with "[STRIDER]" to make the source
+    // of the message clearer to the user.
+    function striderMessage(message) {
+        var msg = "[STRIDER] " + message + "\n"
+        updateStatus("queue.task_update", {stdout:msg, stdmerged:msg})
+    }
 
-    function forkProc(t1, cwd, shell) {
+
+    function forkProc(cwd, shell) {
       var split = shell.split(/\s+/)
       var cmd = split[0]
       var args = split.slice(1)
@@ -106,9 +122,7 @@ function registerEvents(emitter) {
         proc.stdmergedBuffer += buf
         stdoutBuffer += buf
         stdmergedBuffer += buf
-        var t2 = new Date()
-        var elapsed = (t2.getTime() - t1.getTime()) / 1000
-        updateStatus("queue.task_update", elapsed, {stdout:buf})
+        updateStatus("queue.task_update" , {stdout:buf})
       })
 
       proc.stderr.on('data', function(buf) {
@@ -116,26 +130,22 @@ function registerEvents(emitter) {
         proc.stdmergedBuffer += buf
         stderrBuffer += buf
         stdmergedBuffer += buf
-        var t2 = new Date()
-        var elapsed = (t2.getTime() - t1.getTime()) / 1000
-        updateStatus("queue.task_update", elapsed, {stderr:buf})
+        updateStatus("queue.task_update", {stderr:buf})
       })
 
       return proc
     }
 
     function doTestRun(cwd, prepareCmd, testCmd) {
-      var preProc = forkProc(t1, cwd, prepareCmd)
+      var preProc = forkProc(cwd, prepareCmd)
       preProc.on('exit', function(exitCode) {
         console.log("process exited with code: %d", exitCode)
         if (exitCode === 0) {
           // Preparatory phase completed OK - continue
-          var testProc = forkProc(t1, cwd, testCmd)
+          var testProc = forkProc(cwd, testCmd)
 
           testProc.on('exit', function(exitCode) {
-            var t2 = new Date()
-            var elapsed = (t2.getTime() - t1.getTime()) / 1000
-            updateStatus("queue.task_complete", elapsed, {
+            updateStatus("queue.task_complete", {
               stderr:stderrBuffer,
               stdout:stdoutBuffer,
               stdmerged:stdmergedBuffer,
@@ -144,9 +154,7 @@ function registerEvents(emitter) {
             })
           })
         } else {
-          var t2 = new Date()
-          var elapsed = (t2.getTime() - t1.getTime()) / 1000
-          updateStatus("queue.task_complete", elapsed, {
+          updateStatus("queue.task_complete", {
             stderr:stderrBuffer,
             stdout:stdoutBuffer,
             stdmerged:stdmergedBuffer,
@@ -158,9 +166,6 @@ function registerEvents(emitter) {
       })
     }
 
-    var dir = path.join(__dirname, '_work')
-    console.log('new job')
-    var t1 = new Date()
     Step(
       function() {
         // XXX: Support incremental builds at some point
@@ -169,20 +174,16 @@ function registerEvents(emitter) {
       function(err) {
         if (err) throw err
         console.log("cloning %s", data.repo_ssh_url)
-        var t2 = new Date()
-        var elapsed = (t2.getTime() - t1.getTime()) / 1000
-        var msg = "Starting git clone of repo at " + data.repo_ssh_url + "\n"
-        updateStatus("queue.task_update", elapsed, {stdout:msg, stdmerged:msg})
+        var msg = "Starting git clone of repo at " + data.repo_ssh_url
+        striderMessage(msg)
         gitane.run(dir, data.repo_config.privkey, 'git clone ' + data.repo_ssh_url, this)
       },
       function(err, stderr, stdout) {
         if (err) throw err
         this.workingDir = path.join(dir, path.basename(data.repo_ssh_url.replace('.git', '')))
-        var t2 = new Date()
-        var elapsed = (t2.getTime() - t1.getTime()) / 1000
-        var msg = "Git clone complete\n"
-        updateStatus("queue.task_update", elapsed, {stdout:stdout, stderr:stderr, stdmerged:stdout+stderr})
-        updateStatus("queue.task_update", elapsed, {stdout:msg, stdmerged:msg})
+        updateStatus("queue.task_update", {stdout:stdout, stderr:stderr, stdmerged:stdout+stderr})
+        var msg = "Git clone complete"
+        striderMessage(msg)
         gumshoe.run(this.workingDir, detectionRules, this)
       },
       function(err, result) {
