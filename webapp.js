@@ -60,6 +60,7 @@ function registerEvents(emitter) {
     var stderrBuffer = ""
     var stdoutBuffer = ""
     var stdmergedBuffer = ""
+    // Put stuff under `_work`
     var dir = path.join(__dirname, '_work')
     console.log('new job')
     // Start the clock
@@ -105,6 +106,7 @@ function registerEvents(emitter) {
       var split = shell.split(/\s+/)
       var cmd = split[0]
       var args = split.slice(1)
+      // Inherit parent environment
       var env = process.env
       env.PAAS_NAME = 'strider'
       var proc = spawn(cmd, args, {cwd: cwd, env: env})
@@ -140,7 +142,7 @@ function registerEvents(emitter) {
       var preProc = forkProc(cwd, prepareCmd)
       preProc.on('exit', function(exitCode) {
         console.log("process exited with code: %d", exitCode)
-        if (exitCode === 0) {
+        if (exitCode === 0 && testCmd) {
           // Preparatory phase completed OK - continue
           var testProc = forkProc(cwd, testCmd)
 
@@ -188,9 +190,38 @@ function registerEvents(emitter) {
       },
       function(err, result) {
         if (err) throw err
-        // XXX: Setup
-        doTestRun(this.workingDir, result.prepare, result.test)
-        // XXX: Teardown
+        // TODO: Setup phase (database bringup, etc)
+
+        // Context object for action functions
+        var context = {
+          forkProc: forkProc,
+          updateStatus: updateStatus,
+          striderMessage: striderMessage,
+          doTestRun: doTestRun,
+          workingDir: this.workingDir,
+        }
+        // Execution actions may be delegated to functions.
+        // This is useful for example for multi-step things like in Python where a virtual env must be set up.
+        // Functions are of signature function(context, cb)
+        if (typeof(result.prepare) === 'string' && typeof(result.test) === 'string') {
+          doTestRun(this.workingDir, result.prepare, result.test)
+          return
+        }
+        if (typeof(result.prepare) === 'function') {
+          result.prepare(context, function(err) {
+            if (typeof(result.test) === 'function') {
+              result.test(context, this)
+            } else {
+              doTestRun(this.workingDir, result.test)
+            }
+          })
+        } else {
+          doTestRun(this.workingDir, result.prepare)
+        }
+
+        // TODO: Deploy (e.g. Heroku, dotCloud)
+
+        // TODO: Teardown phase (database shutdown, etc)
 
       }
 
