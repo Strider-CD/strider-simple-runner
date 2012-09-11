@@ -225,9 +225,10 @@ function registerEvents(emitter) {
         prepare(context, function(prepareExitCode) {
           if (prepareExitCode !== 0) {
             // Prepare step failed
-            var msg = "Prepare failed; exit code: " + testExitCode
+            var msg = "Prepare failed; exit code: " + prepareExitCode
             striderMessage(msg)
             console.log(msg)
+            console.log("stdmergedBuffer: %s", stdmergedBuffer);
             return complete(prepareExitCode, null)
           }
           test(context, function(testExitCode) {
