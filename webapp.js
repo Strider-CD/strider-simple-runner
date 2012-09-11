@@ -11,6 +11,7 @@ var path = require('path')
 var spawn = require('child_process').spawn
 var Step = require('step')
 
+
 // Work around npm not being installed on some systems - use own copy
 // the test clause is for Heroku
 var npmCmd = "$(test -x ~/bin/node && echo ~/bin/node || echo node) ../../node_modules/npm/bin/npm-cli.js"
@@ -59,6 +60,11 @@ var setupActions = []
 // if a string, this is a shell command to be executed to run project tests (e.g. "kill $PID")
 // if a function, this accepts a callback argument of signature function(err) which must be called.
 var teardownActions = []
+
+// Wrap a shell command for execution by spawn()
+function shellWrap(str) {
+  return { cmd:"sh", args:["-c", "'" + str + "'"] }
+}
 
 function registerEvents(emitter) {
 
@@ -113,13 +119,22 @@ function registerEvents(emitter) {
     }
 
 
-    function forkProc(cwd, shell, cb) {
-      var split = shell.split(/\s+/)
-      var cmd = split[0]
-      var args = split.slice(1)
+    //
+    // forkProc(cwd, shell, cb)
+    // or
+    // forkProc(cwd, cmd, args, cb)
+    //
+    function forkProc(cwd, cmd, args, cb) {
+      if (typeof(cmd) === 'string' && typeof(args) === 'function') {
+        var split = shell.split(/\s+/)
+        var cmd = split[0]
+        var args = split.slice(1)
+        cb = args
+      }
       // Inherit parent environment
       var env = process.env
       env.PAAS_NAME = 'strider'
+      console.log("spawning: %s in dir: %s", cmd, 
       var proc = spawn(cmd, args, {cwd: cwd, env: env})
 
       // per-process output buffers
@@ -208,14 +223,16 @@ function registerEvents(emitter) {
         // directly ourselves.
         var self = this
         if (typeof(result.prepare) === 'string') {
+          var sh = shellWrap(result.prepare)
           prepare = function(context, cb) {
-            forkProc(self.workingDir, result.prepare, cb)
+            forkProc(self.workingDir, sh.cmd, sh.args, cb)
           }
         }
 
         if (typeof(result.test) === 'string') {
+          var sh = shellWrap(result.test)
           test = function(context, cb) {
-            forkProc(self.workingDir, result.test, cb)
+            forkProc(self.workingDir, sh.cmd, sh.args, cb)
           }
         }
         // Execution actions may be delegated to functions.
