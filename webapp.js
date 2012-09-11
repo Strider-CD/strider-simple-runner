@@ -163,7 +163,6 @@ function registerEvents(emitter) {
       function(err, stderr, stdout) {
         if (err) throw err
         this.workingDir = path.join(dir, path.basename(data.repo_ssh_url.replace('.git', '')))
-        console.log("workingDir: %s", this.workingDir)
         updateStatus("queue.task_update", {stdout:stdout, stderr:stderr, stdmerged:stdout+stderr})
         var msg = "Git clone complete"
         striderMessage(msg)
