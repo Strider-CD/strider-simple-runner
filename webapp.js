@@ -134,7 +134,6 @@ function registerEvents(emitter) {
       // Inherit parent environment
       var env = process.env
       env.PAAS_NAME = 'strider'
-      console.log("spawning: %s in dir: %s", cmd, 
       var proc = spawn(cmd, args, {cwd: cwd, env: env})
 
       // per-process output buffers
