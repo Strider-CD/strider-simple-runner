@@ -11,6 +11,11 @@ var path = require('path')
 var spawn = require('child_process').spawn
 var Step = require('step')
 
+// Work around npm not being installed on some systems - use own copy
+var npmCmd = "node ../../node_modules/npm/bin/npm-cli.js"
+var nodePrepare = npmCmd + " install"
+var nodeTest = npmCmd + " test"
+var nodeStart = npmCmd + " start"
 var djangoPrepare = "virtualenv-2.7 env && env/bin/pip -r requirements.txt"
 var djangoTest = "env/bin/python manage.py test"
 var setupPyPrepare = "virtualenv-2.7 env && env/bin/python setup.py develop ; env/bin/pip -r requirements.txt"
@@ -20,9 +25,9 @@ var setupPyTest = "env/bin/python setup.py test"
 var DEFAULT_PROJECT_TYPE_RULES = [
 
   // Node
-  {filename:"package.json", grep:/express/i, language:"node.js", framework:"express", prepare:"npm install", test:"npm test", start:"npm start"},
-  {filename:"package.json", grep:/connect/i, language:"node.js", framework:"connect", prepare:"npm install", test:"npm test", start:"npm start"},
-  {filename:"package.json", exists:true, language:"node.js", framework:null, prepare:"npm install", test:"npm test", start:"npm start"},
+  {filename:"package.json", grep:/express/i, language:"node.js", framework:"express", prepare:nodePrepare, test:nodeTest, start:nodeStart},
+  {filename:"package.json", grep:/connect/i, language:"node.js", framework:"connect", prepare:nodePrepare, test:nodeTest, start:nodeStart},
+  {filename:"package.json", exists:true, language:"node.js", framework:null, prepare:nodePrepare, test:nodeTest, start:nodeStart},
   // Python
   {filename:"setup.py", grep:/pyramid/i, language:"python", framework:"pyramid", prepare:setupPyPrepare, test:setupPyTest},
   {filename:"manage.py", grep:/django/i, language:"python", framework:"django", prepare:djangoPrepare, test:djangoTest},
