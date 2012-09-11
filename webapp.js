@@ -11,6 +11,11 @@ var path = require('path')
 var spawn = require('child_process').spawn
 var Step = require('step')
 
+var djangoPrepare = "virtualenv-2.7 env && env/bin/pip -r requirements.txt"
+var djangoTest = "env/bin/python manage.py test"
+var setupPyPrepare = "virtualenv-2.7 env && env/bin/python setup.py develop ; env/bin/pip -r requirements.txt"
+var setupPyTest = "env/bin/python setup.py test"
+
 // Built-in rules for project-type detection
 var DEFAULT_PROJECT_TYPE_RULES = [
 
@@ -19,9 +24,9 @@ var DEFAULT_PROJECT_TYPE_RULES = [
   {filename:"package.json", grep:/connect/i, language:"node.js", framework:"connect", prepare:"npm install", test:"npm test", start:"npm start"},
   {filename:"package.json", exists:true, language:"node.js", framework:null, prepare:"npm install", test:"npm test", start:"npm start"},
   // Python
-  {filename:"setup.py", grep:/pyramid/i, language:"python", framework:"pyramid"},
-  {filename:"manage.py", grep:/django/i, language:"python", framework:"django"},
-  {filename:"setup.py", exists:true, language:"python", framework:null},
+  {filename:"setup.py", grep:/pyramid/i, language:"python", framework:"pyramid", prepare:setupPyPrepare, test:setupPyTest},
+  {filename:"manage.py", grep:/django/i, language:"python", framework:"django", prepare:djangoPrepare, test:djangoTest},
+  {filename:"setup.py", exists:true, language:"python", framework:null, prepare:setupPyPrepare, test:setupPyTest},
 
 ]
 
@@ -102,7 +107,7 @@ function registerEvents(emitter) {
     }
 
 
-    function forkProc(cwd, shell) {
+    function forkProc(cwd, shell, cb) {
       var split = shell.split(/\s+/)
       var cmd = split[0]
       var args = split.slice(1)
@@ -135,37 +140,12 @@ function registerEvents(emitter) {
         updateStatus("queue.task_update", {stderr:buf})
       })
 
-      return proc
-    }
-
-    function doTestRun(cwd, prepareCmd, testCmd) {
-      var preProc = forkProc(cwd, prepareCmd)
-      preProc.on('exit', function(exitCode) {
+      proc.on('exit', function(exitCode) {
         console.log("process exited with code: %d", exitCode)
-        if (exitCode === 0 && testCmd) {
-          // Preparatory phase completed OK - continue
-          var testProc = forkProc(cwd, testCmd)
-
-          testProc.on('exit', function(exitCode) {
-            updateStatus("queue.task_complete", {
-              stderr:stderrBuffer,
-              stdout:stdoutBuffer,
-              stdmerged:stdmergedBuffer,
-              testExitCode:exitCode,
-              deployExitCode:null
-            })
-          })
-        } else {
-          updateStatus("queue.task_complete", {
-            stderr:stderrBuffer,
-            stdout:stdoutBuffer,
-            stdmerged:stdmergedBuffer,
-            testExitCode:exitCode,
-            deployExitCode:null
-          })
-
-        }
+        cb(exitCode)
       })
+
+      return proc
     }
 
     Step(
@@ -175,7 +155,7 @@ function registerEvents(emitter) {
       },
       function(err) {
         if (err) throw err
-        console.log("cloning %s", data.repo_ssh_url)
+        console.log("cloning %s into %s", data.repo_ssh_url, dir)
         var msg = "Starting git clone of repo at " + data.repo_ssh_url
         striderMessage(msg)
         gitane.run(dir, data.repo_config.privkey, 'git clone ' + data.repo_ssh_url, this)
@@ -183,6 +163,7 @@ function registerEvents(emitter) {
       function(err, stderr, stdout) {
         if (err) throw err
         this.workingDir = path.join(dir, path.basename(data.repo_ssh_url.replace('.git', '')))
+        console.log("workingDir: %s", this.workingDir)
         updateStatus("queue.task_update", {stdout:stdout, stderr:stderr, stdmerged:stdout+stderr})
         var msg = "Git clone complete"
         striderMessage(msg)
@@ -197,27 +178,76 @@ function registerEvents(emitter) {
           forkProc: forkProc,
           updateStatus: updateStatus,
           striderMessage: striderMessage,
-          doTestRun: doTestRun,
           workingDir: this.workingDir,
+        }
+
+        // No-op defaults
+        var prepare = test = deploy = function(context, cb) {
+          cb(null)
+        }
+
+
+        function complete(testCode, deployCode, cb) {
+          updateStatus("queue.task_complete", {
+            stderr:stderrBuffer,
+            stdout:stdoutBuffer,
+            stdmerged:stdmergedBuffer,
+            testExitCode:testCode,
+            deployExitCode:deployCode
+          })
+          if (typeof(cb) === 'function') cb(null)
+        }
+
+        // If actions are strings, we assume they are shell commands and try to execute them
+        // directly ourselves.
+        var self = this
+        if (typeof(result.prepare) === 'string') {
+          prepare = function(context, cb) {
+            forkProc(self.workingDir, result.prepare, cb)
+          }
+        }
+
+        if (typeof(result.test) === 'string') {
+          test = function(context, cb) {
+            forkProc(self.workingDir, result.test, cb)
+          }
         }
         // Execution actions may be delegated to functions.
         // This is useful for example for multi-step things like in Python where a virtual env must be set up.
         // Functions are of signature function(context, cb)
-        if (typeof(result.prepare) === 'string' && typeof(result.test) === 'string') {
-          doTestRun(this.workingDir, result.prepare, result.test)
-          return
-        }
+        // We assume the function handles any necessary shell interaction and sending of update messages.
         if (typeof(result.prepare) === 'function') {
-          result.prepare(context, function(err) {
-            if (typeof(result.test) === 'function') {
-              result.test(context, this)
-            } else {
-              doTestRun(this.workingDir, result.test)
-            }
-          })
-        } else {
-          doTestRun(this.workingDir, result.prepare)
+          prepare = result.prepare
         }
+        if (typeof(result.test) === 'function') {
+          test = result.test
+        }
+
+        prepare(context, function(prepareExitCode) {
+          if (prepareExitCode !== 0) {
+            // Prepare step failed
+            var msg = "Prepare failed; exit code: " + testExitCode
+            striderMessage(msg)
+            console.log(msg)
+            return complete(prepareExitCode, null)
+          }
+          test(context, function(testExitCode) {
+            var msg = "Test exit code: " + testExitCode
+            console.log(msg)
+            striderMessage(msg)
+            if (testExitCode !== 0 || data.job_type !== "TEST_AND_DEPLOY") {
+              // Test step failed or no deploy requested
+              complete(testExitCode, null)
+            } else {
+              // Test step passed and deploy requested
+              deploy(context, function(deployExitCode) {
+                complete(testExitCode, deployExitCode)
+              })
+            }
+
+          })
+        })
+
 
         // TODO: Deploy (e.g. Heroku, dotCloud)
 
@@ -237,7 +267,6 @@ function addDetectionRules(r) {
 // Add a single detection rule
 function addDetectionRule(r) {
   detectionRules.push(r)
-
 }
 
 module.exports = function(context, cb) {
