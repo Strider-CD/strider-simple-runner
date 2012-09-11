@@ -63,7 +63,7 @@ var teardownActions = []
 
 // Wrap a shell command for execution by spawn()
 function shellWrap(str) {
-  return { cmd:"sh", args:["-c", "'" + str + "'"] }
+  return { cmd:"sh", args:["-c", str] }
 }
 
 function registerEvents(emitter) {
@@ -222,16 +222,16 @@ function registerEvents(emitter) {
         // directly ourselves.
         var self = this
         if (typeof(result.prepare) === 'string') {
-          var sh = shellWrap(result.prepare)
+          var psh = shellWrap(result.prepare)
           prepare = function(context, cb) {
-            forkProc(self.workingDir, sh.cmd, sh.args, cb)
+            forkProc(self.workingDir, psh.cmd, psh.args, cb)
           }
         }
 
         if (typeof(result.test) === 'string') {
-          var sh = shellWrap(result.test)
+          var tsh = shellWrap(result.test)
           test = function(context, cb) {
-            forkProc(self.workingDir, sh.cmd, sh.args, cb)
+            forkProc(self.workingDir, tsh.cmd, tsh.args, cb)
           }
         }
         // Execution actions may be delegated to functions.
