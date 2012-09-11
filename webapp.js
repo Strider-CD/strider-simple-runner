@@ -12,7 +12,8 @@ var spawn = require('child_process').spawn
 var Step = require('step')
 
 // Work around npm not being installed on some systems - use own copy
-var npmCmd = "node ../../node_modules/npm/bin/npm-cli.js"
+// the test clause is for Heroku
+var npmCmd = "$(test -x ~/bin/node && echo ~/bin/node || echo node) ../../node_modules/npm/bin/npm-cli.js"
 var nodePrepare = npmCmd + " install"
 var nodeTest = npmCmd + " test"
 var nodeStart = npmCmd + " start"
