@@ -170,6 +170,7 @@ function registerEvents(emitter) {
         this.workingDir = path.join(dir, path.basename(data.repo_ssh_url.replace('.git', '')))
         updateStatus("queue.task_update", {stdout:stdout, stderr:stderr, stdmerged:stdout+stderr})
         var msg = "Git clone complete"
+        console.log(msg)
         striderMessage(msg)
         gumshoe.run(this.workingDir, detectionRules, this)
       },
