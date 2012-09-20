@@ -6,7 +6,7 @@
   "homepage": "http://github.com/Strider-CD/strider-simple-worker",
   "dependencies": {
     "gitane": "~0.0.5",
-    "gumshoe": "~0.0.2",
+    "gumshoe": "~0.0.3",
     "npm":"~1.1.61",
     "step": "~0.0.5"
   },
