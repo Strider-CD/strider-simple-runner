@@ -18,9 +18,11 @@ var npmCmd = "$(test -x ~/bin/node && echo ~/bin/node || echo node) ../../node_m
 var nodePrepare = npmCmd + " install"
 var nodeTest = npmCmd + " test"
 var nodeStart = npmCmd + " start"
-var djangoPrepare = "virtualenv-2.7 env && env/bin/pip -r requirements.txt"
+var virtualenvPath = path.join(__dirname, "thirdparty", "virtualenv.py")
+console.log(virtualenvPath)
+var djangoPrepare = "python " + virtualenvPath + " env && env/bin/pip -r requirements.txt"
 var djangoTest = "env/bin/python manage.py test"
-var setupPyPrepare = "virtualenv-2.7 env && env/bin/python setup.py develop ; env/bin/pip -r requirements.txt"
+var setupPyPrepare = "python " + virtualenvPath + " env && env/bin/python setup.py develop ; env/bin/pip -r requirements.txt"
 var setupPyTest = "env/bin/python setup.py test"
 
 // Built-in rules for project-type detection
@@ -198,6 +200,7 @@ function registerEvents(emitter) {
           forkProc: forkProc,
           updateStatus: updateStatus,
           striderMessage: striderMessage,
+          shellWrap:shellWrap,
           workingDir: this.workingDir,
         }
 
@@ -282,14 +285,14 @@ function registerEvents(emitter) {
   })
 }
 
-// Add an array of detection rules
+// Add an array of detection rules to head of list
 function addDetectionRules(r) {
-  detectionRules = detectionRules.concat(r)
+  detectionRules = r.concat(detectionRules)
 }
 
-// Add a single detection rule
+// Add a single detection rule to head of list
 function addDetectionRule(r) {
-  detectionRules.push(r)
+  detectionRules = [r].concat(detectionRules)
 }
 
 module.exports = function(context, cb) {
