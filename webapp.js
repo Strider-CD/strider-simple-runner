@@ -125,16 +125,22 @@ function registerEvents(emitter) {
     // forkProc(cwd, shell, cb)
     // or
     // forkProc(cwd, cmd, args, cb)
+    // or
+    // forkProc({opts}, cb)
     //
     function forkProc(cwd, cmd, args, cb) {
+      var env = process.env
+      if (typeof(cwd) === 'object') {
+        var cmd = cwd.cmd
+        var args = cwd.args
+        env = cwd.env || env
+      }
       if (typeof(cmd) === 'string' && typeof(args) === 'function') {
         var split = shell.split(/\s+/)
         var cmd = split[0]
         var args = split.slice(1)
         cb = args
       }
-      // Inherit parent environment
-      var env = process.env
       env.PAAS_NAME = 'strider'
       var proc = spawn(cmd, args, {cwd: cwd, env: env})
 
