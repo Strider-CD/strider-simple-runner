@@ -136,7 +136,11 @@ function registerEvents(emitter) {
         cb = cmd
         var cmd = cwd.cmd
         var args = cwd.args
-        env = cwd.env || env
+        // Merge/override any variables
+        for (var i=0; i < Object.keys(cwd.env).length; i++) {
+          env[Object.keys(cwd.env)[i]] = cwd.env[Object.keys(cwd.env)[i]]
+        }
+        cwd = cwd.cwd
       }
       if (typeof(cmd) === 'string' && typeof(args) === 'function') {
         var split = shell.split(/\s+/)
