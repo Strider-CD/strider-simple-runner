@@ -116,8 +116,10 @@ function registerEvents(emitter) {
     // This automatically prefixes with "[STRIDER]" to make the source
     // of the message clearer to the user.
     function striderMessage(message) {
-        var msg = "[STRIDER] " + message + "\n"
-        updateStatus("queue.task_update", {stdout:msg, stdmerged:msg})
+      var msg = "[STRIDER] " + message + "\n"
+      stdmergedBuffer += msg
+      stdoutBuffer += msg
+      updateStatus("queue.task_update", {stdout:msg, stdmerged:msg})
     }
 
 
