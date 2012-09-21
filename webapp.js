@@ -137,8 +137,9 @@ function registerEvents(emitter) {
         var cmd = cwd.cmd
         var args = cwd.args
         // Merge/override any variables
-        for (var i=0; i < Object.keys(cwd.env).length; i++) {
-          env[Object.keys(cwd.env)[i]] = cwd.env[Object.keys(cwd.env)[i]]
+        var keys = Object.keys(cwd.env)
+        for (var i=0; i < keys.length; i++) {
+          env[keys[i]] = cwd.env[keys[i]]
         }
         cwd = cwd.cwd
       }
