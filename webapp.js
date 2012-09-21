@@ -131,6 +131,7 @@ function registerEvents(emitter) {
     function forkProc(cwd, cmd, args, cb) {
       var env = process.env
       if (typeof(cwd) === 'object') {
+        cb = cmd
         var cmd = cwd.cmd
         var args = cwd.args
         env = cwd.env || env
