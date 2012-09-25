@@ -216,6 +216,7 @@ function registerEvents(emitter) {
           striderMessage: striderMessage,
           shellWrap:shellWrap,
           workingDir: this.workingDir,
+          npmCmd: npmCmd,
         }
 
         // No-op defaults
