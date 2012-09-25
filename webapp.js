@@ -321,6 +321,7 @@ module.exports = function(context, cb) {
     config: context.config,
     emitter: context.emitter,
     extdir: context.extdir,
+    models: context.models,
     npmCmd: npmCmd,
   }
 
