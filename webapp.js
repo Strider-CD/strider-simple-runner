@@ -320,6 +320,7 @@ module.exports = function(context, cb) {
     config: context.config,
     emitter: context.emitter,
     extdir: context.extdir,
+    npmCmd: npmCmd,
   }
 
   Step(
