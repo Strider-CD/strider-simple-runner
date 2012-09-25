@@ -119,7 +119,7 @@ function registerEvents(emitter) {
       var msg = "[STRIDER] " + message + "\n"
       stdmergedBuffer += msg
       stdoutBuffer += msg
-      updateStatus("queue.task_update", {stdout:msg, stdmerged:msg})
+      updateStatus("queue.job_update", {stdout:msg, stdmerged:msg})
     }
 
 
@@ -165,7 +165,7 @@ function registerEvents(emitter) {
         proc.stdmergedBuffer += buf
         stdoutBuffer += buf
         stdmergedBuffer += buf
-        updateStatus("queue.task_update" , {stdout:buf})
+        updateStatus("queue.job_update" , {stdout:buf})
       })
 
       proc.stderr.on('data', function(buf) {
@@ -173,7 +173,7 @@ function registerEvents(emitter) {
         proc.stdmergedBuffer += buf
         stderrBuffer += buf
         stdmergedBuffer += buf
-        updateStatus("queue.task_update", {stderr:buf})
+        updateStatus("queue.job_update", {stderr:buf})
       })
 
       proc.on('exit', function(exitCode) {
@@ -199,7 +199,7 @@ function registerEvents(emitter) {
       function(err, stderr, stdout) {
         if (err) throw err
         this.workingDir = path.join(dir, path.basename(data.repo_ssh_url.replace('.git', '')))
-        updateStatus("queue.task_update", {stdout:stdout, stderr:stderr, stdmerged:stdout+stderr})
+        updateStatus("queue.job_update", {stdout:stdout, stderr:stderr, stdmerged:stdout+stderr})
         var msg = "Git clone complete"
         console.log(msg)
         striderMessage(msg)
@@ -216,6 +216,7 @@ function registerEvents(emitter) {
           striderMessage: striderMessage,
           shellWrap:shellWrap,
           workingDir: this.workingDir,
+          jobData: data,
           npmCmd: npmCmd,
         }
 
@@ -226,7 +227,7 @@ function registerEvents(emitter) {
 
 
         function complete(testCode, deployCode, cb) {
-          updateStatus("queue.task_complete", {
+          updateStatus("queue.job_complete", {
             stderr:stderrBuffer,
             stdout:stdoutBuffer,
             stdmerged:stdmergedBuffer,
