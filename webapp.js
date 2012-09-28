@@ -141,12 +141,19 @@ function registerEvents(emitter) {
     function deployHeroku(cwd, app, key, cb) {
       var cmd = 'git remote add heroku git@heroku.com:' + app + '.git'
       gitane.run(cwd, key, cmd, function(err, stdout, stderr) {
+        if (err) return cb(1, null)
+        stdoutBuffer += stdout
+        stderrBuffer += stderr
+        stdmergedBuffer += stdout + stderr
         updateStatus("queue.job_update", {stdout:stdout, stderr:stderr, stdmerged:stdout+stderr})
-        if (err) return cb(err, null)
         cmd = 'git push heroku --force master'
         gitane.run(cwd, key, cmd, function(err, stdout, stderr) {
+          if (err) return cb(1, null)
+          stdoutBuffer += stdout
+          stderrBuffer += stderr
+          stdmergedBuffer += stdout + stderr
           updateStatus("queue.job_update", {stdout:stdout, stderr:stderr, stdmerged:stdout+stderr})
-          if (err) return cb(err, null)
+          striderMessage("Deployment to Heroku successful.")
           cb(0)
         })
       })
@@ -301,10 +308,11 @@ function registerEvents(emitter) {
         // If this job has a Heroku deploy config attached, use the Heroku deploy function
         if (data.deploy_config) {
           console.log("have heroku config")
+          var self = this
           deploy = function(ctx, cb) {
-            console.log("deploying to heroku")
-            deployHeroku(this.workingDir,
-              data.deploy_config.privkey, data.deploy_config.app, cb)
+            striderMessage("Deploying to Heroku ...")
+            deployHeroku(self.workingDir,
+              data.deploy_config.app, data.deploy_config.privkey, cb)
           }
         }
 
@@ -333,9 +341,6 @@ function registerEvents(emitter) {
 
           })
         })
-
-
-        // TODO: Deploy (e.g. Heroku, dotCloud)
 
         // TODO: Teardown phase (database shutdown, etc)
 
