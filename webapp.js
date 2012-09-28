@@ -63,6 +63,10 @@ var setupActions = []
 // if a function, this accepts a callback argument of signature function(err) which must be called.
 var teardownActions = []
 
+// Simple global queue for jobs. Jobs should be executed one at a time, in serial.
+var simpleQueue = []
+var jobLock = false
+
 // Wrap a shell command for execution by spawn()
 function shellWrap(str) {
   return { cmd:"sh", args:["-c", str] }
@@ -75,6 +79,13 @@ function registerEvents(emitter) {
   //
 
   emitter.on('queue.new_job', function(data) {
+    simpleQueue.push(data)
+    if (!jobLock) processJob(data)
+  })
+
+  function processJob(data) {
+    jobLock = true
+
     // cross-process (per-job) output buffers
     var stderrBuffer = ""
     var stdoutBuffer = ""
@@ -235,6 +246,11 @@ function registerEvents(emitter) {
             deployExitCode:deployCode
           })
           if (typeof(cb) === 'function') cb(null)
+
+          jobLock = false
+          if (simpleQueue.length > 0) {
+            processJob(simpleQueue.shift())
+          }
         }
 
         // If actions are strings, we assume they are shell commands and try to execute them
@@ -298,7 +314,7 @@ function registerEvents(emitter) {
       }
 
     )
-  })
+  }
 }
 
 // Add an array of detection rules to head of list
