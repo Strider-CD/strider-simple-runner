@@ -79,8 +79,11 @@ function registerEvents(emitter) {
   //
 
   emitter.on('queue.new_job', function(data) {
-    simpleQueue.push(data)
-    if (!jobLock) processJob(data)
+    if (!jobLock) { 
+      processJob(data)
+    } else {
+      simpleQueue.push(data)
+    }
   })
 
   function processJob(data) {
@@ -133,6 +136,21 @@ function registerEvents(emitter) {
       updateStatus("queue.job_update", {stdout:msg, stdmerged:msg})
     }
 
+
+    // Deploy to Heroku
+    function deployHeroku(cwd, app, key, cb) {
+      var cmd = 'git remote add heroku git@heroku.com:' + app + '.git'
+      gitane.run(cwd, key, cmd, function(err, stdout, stderr) {
+        updateStatus("queue.job_update", {stdout:stdout, stderr:stderr, stdmerged:stdout+stderr})
+        if (err) return cb(err, null)
+        cmd = 'git push heroku --force master'
+        gitane.run(cwd, key, cmd, function(err, stdout, stderr) {
+          updateStatus("queue.job_update", {stdout:stdout, stderr:stderr, stdmerged:stdout+stderr})
+          if (err) return cb(err, null)
+          cb(0)
+        })
+      })
+    }
 
     //
     // forkProc(cwd, shell, cb)
@@ -278,6 +296,16 @@ function registerEvents(emitter) {
         }
         if (typeof(result.test) === 'function') {
           test = result.test
+        }
+
+        // If this job has a Heroku deploy config attached, use the Heroku deploy function
+        if (data.deploy_config) {
+          console.log("have heroku config")
+          deploy = function(ctx, cb) {
+            console.log("deploying to heroku")
+            deployHeroku(this.workingDir,
+              data.deploy_config.privkey, data.deploy_config.app, cb)
+          }
         }
 
         prepare(context, function(prepareExitCode) {
