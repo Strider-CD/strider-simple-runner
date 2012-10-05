@@ -19,7 +19,6 @@ var nodePrepare = npmCmd + " install"
 var nodeTest = npmCmd + " test"
 var nodeStart = npmCmd + " start"
 var virtualenvPath = path.join(__dirname, "thirdparty", "virtualenv.py")
-console.log(virtualenvPath)
 var djangoPrepare = "python " + virtualenvPath + " env && env/bin/pip -r requirements.txt"
 var djangoTest = "env/bin/python manage.py test"
 var setupPyPrepare = "python " + virtualenvPath + " env && env/bin/python setup.py develop ; env/bin/pip -r requirements.txt"
