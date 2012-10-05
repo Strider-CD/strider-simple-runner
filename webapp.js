@@ -366,7 +366,7 @@ module.exports = function(context, cb) {
   var workerContext = {
     addDetectionRule:addDetectionRule,
     addDetectionRules:addDetectionRules,
-    config: context.config
+    config: context.config,
     extdir: context.extdir,
     npmCmd: npmCmd,
   }
