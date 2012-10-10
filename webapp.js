@@ -66,10 +66,21 @@ var teardownActions = []
 var simpleQueue = []
 var jobLock = false
 
+// Environment, by default, inherits from process.env
+var ENV = process.env
+
+// Return path to writeable dir for test purposes
+function getDataDir() {
+  return path.join(__dirname, "_work")
+}
+
 // Wrap a shell command for execution by spawn()
 function shellWrap(str) {
   return { cmd:"sh", args:["-c", str] }
 }
+
+// Default logger
+logger = {log: console.log}
 
 function registerEvents(emitter) {
 
@@ -93,8 +104,8 @@ function registerEvents(emitter) {
     var stdoutBuffer = ""
     var stdmergedBuffer = ""
     // Put stuff under `_work`
-    var dir = path.join(__dirname, '_work')
-    console.log('new job')
+    var dir = getDataDir()
+    logger.log('new job')
     // Start the clock
     var t1 = new Date()
 
@@ -166,7 +177,7 @@ function registerEvents(emitter) {
     // forkProc({opts}, cb)
     //
     function forkProc(cwd, cmd, args, cb) {
-      var env = process.env
+      var env = ENV
       if (typeof(cwd) === 'object') {
         cb = cmd
         var cmd = cwd.cmd
@@ -179,10 +190,10 @@ function registerEvents(emitter) {
         cwd = cwd.cwd
       }
       if (typeof(cmd) === 'string' && typeof(args) === 'function') {
-        var split = shell.split(/\s+/)
-        var cmd = split[0]
-        var args = split.slice(1)
+        var split = cmd.split(/\s+/)
+        cmd = split[0]
         cb = args
+        args = split.slice(1)
       }
       env.PAAS_NAME = 'strider'
       var proc = spawn(cmd, args, {cwd: cwd, env: env})
@@ -191,9 +202,6 @@ function registerEvents(emitter) {
       proc.stderrBuffer = ""
       proc.stdoutBuffer = ""
       proc.stdmergedBuffer = ""
-
-      proc.stdout.setEncoding('utf8')
-      proc.stderr.setEncoding('utf8')
 
       proc.stdout.on('data', function(buf) {
         proc.stdoutBuffer += buf
@@ -212,7 +220,7 @@ function registerEvents(emitter) {
       })
 
       proc.on('exit', function(exitCode) {
-        console.log("process exited with code: %d", exitCode)
+        logger.log("process exited with code: %d", exitCode)
         cb(exitCode)
       })
 
@@ -226,7 +234,7 @@ function registerEvents(emitter) {
       },
       function(err) {
         if (err) throw err
-        console.log("cloning %s into %s", data.repo_ssh_url, dir)
+        logger.log("cloning %s into %s", data.repo_ssh_url, dir)
         var msg = "Starting git clone of repo at " + data.repo_ssh_url
         striderMessage(msg)
         gitane.run(dir, data.repo_config.privkey, 'git clone ' + data.repo_ssh_url, this)
@@ -236,7 +244,7 @@ function registerEvents(emitter) {
         this.workingDir = path.join(dir, path.basename(data.repo_ssh_url.replace('.git', '')))
         updateStatus("queue.job_update", {stdout:stdout, stderr:stderr, stdmerged:stdout+stderr})
         var msg = "Git clone complete"
-        console.log(msg)
+        logger.log(msg)
         striderMessage(msg)
         gumshoe.run(this.workingDir, detectionRules, this)
       },
@@ -256,10 +264,10 @@ function registerEvents(emitter) {
         }
 
         // No-op defaults
-        var prepare = test = deploy = function(context, cb) {
+        var prepare, test, deploy
+        prepare = test = deploy = function(context, cb) {
           cb(null)
         }
-
 
         function complete(testCode, deployCode, cb) {
           updateStatus("queue.job_complete", {
@@ -306,7 +314,7 @@ function registerEvents(emitter) {
 
         // If this job has a Heroku deploy config attached, use the Heroku deploy function
         if (data.deploy_config) {
-          console.log("have heroku config")
+          logger.log("have heroku config")
           var self = this
           deploy = function(ctx, cb) {
             striderMessage("Deploying to Heroku ...")
@@ -320,13 +328,13 @@ function registerEvents(emitter) {
             // Prepare step failed
             var msg = "Prepare failed; exit code: " + prepareExitCode
             striderMessage(msg)
-            console.log(msg)
-            console.log("stdmergedBuffer: %s", stdmergedBuffer);
+            logger.log(msg)
+            logger.log("stdmergedBuffer: %s", stdmergedBuffer);
             return complete(prepareExitCode, null)
           }
           test(context, function(testExitCode) {
             var msg = "Test exit code: " + testExitCode
-            console.log(msg)
+            logger.log(msg)
             striderMessage(msg)
             if (testExitCode !== 0 || data.job_type !== "TEST_AND_DEPLOY") {
               // Test step failed or no deploy requested
@@ -359,6 +367,19 @@ function addDetectionRule(r) {
   detectionRules = [r].concat(detectionRules)
 }
 
+// Set environment variables used by forkProc
+function setEnv(k, v) {
+  ENV[k] = v
+}
+
+// Get environment variables used by forkProc
+// *k* (optional) specific key to retrieve
+function getEnv(k) {
+  if (k) return ENV[k]
+
+  return ENV
+}
+
 module.exports = function(context, cb) {
   // XXX test purposes
   detectionRules = DEFAULT_PROJECT_TYPE_RULES
@@ -366,9 +387,25 @@ module.exports = function(context, cb) {
   var workerContext = {
     addDetectionRule:addDetectionRule,
     addDetectionRules:addDetectionRules,
+    getEnv: getEnv,
+    setEnv: setEnv,
     config: context.config,
     extdir: context.extdir,
     npmCmd: npmCmd,
+  }
+
+  // Hooks for tests
+  if (context.gitane) {
+    gitane = context.gitane
+  }
+  if (context.gumshoe) {
+    gumshoe = context.gumshoe
+  }
+  if (context.exec) {
+    exec = context.exec
+  }
+  if (context.log) {
+    logger = {log: context.log}
   }
 
   Step(
@@ -377,9 +414,8 @@ module.exports = function(context, cb) {
     },
     function(err, initialized) {
       registerEvents(context.emitter)
-      console.log("Strider Simple Worker ready")
+      logger.log("Strider Simple Worker ready")
       cb(null, null)
     }
   )
-
 }
