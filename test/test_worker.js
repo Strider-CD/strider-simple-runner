@@ -107,7 +107,6 @@ describe('worker', function() {
       mockGumshoeResult = {
         // Hook for ctx.forkProc
         prepare: function(ctx, cb) {
-          var output = "foo"
           var proc = ctx.forkProc(__dirname, "/usr/bin/env", function(exitCode) {
             expect(exitCode).to.eql(0)
             expect(proc.stdoutBuffer).to.have.string('PAAS_NAME=strider')
