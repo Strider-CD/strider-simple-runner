@@ -82,6 +82,7 @@ describe('worker', function() {
         test: function(ctx, cb) {
           verifyCtx(ctx)
           cb(0)
+          done()
         },
       }
       worker(containerCtx, function(err, z) {
@@ -91,7 +92,6 @@ describe('worker', function() {
             privkey: "REPO_CONFIG.PRIVKEY"
           }
         })
-        done()
       })
     })
   })
