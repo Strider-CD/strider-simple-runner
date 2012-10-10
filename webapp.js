@@ -4,6 +4,7 @@
 // A simple, in-process worker implementation for Strider.
 //
 
+var async = require('async')
 var exec = require('child_process').exec
 var gitane = require('gitane')
 var gumshoe = require('gumshoe')
@@ -51,6 +52,7 @@ var detectionRules = []
 // E.g. to start mongodb or postgresql
 // pre-start commands may be either a string or a function
 // XXX: foreground vs daemonprocesses
+
 // if a string, this is a shell command to be executed to run project tests (e.g. "mongod")
 // if a function, this accepts a callback argument of signature function(err) which must be called.
 var setupActions = []
@@ -61,10 +63,6 @@ var setupActions = []
 // if a string, this is a shell command to be executed to run project tests (e.g. "kill $PID")
 // if a function, this accepts a callback argument of signature function(err) which must be called.
 var teardownActions = []
-
-// Simple global queue for jobs. Jobs should be executed one at a time, in serial.
-var simpleQueue = []
-var jobLock = false
 
 // Return path to writeable dir for test purposes
 function getDataDir() {
@@ -82,20 +80,19 @@ logger = {log: console.log}
 function registerEvents(emitter) {
 
 
+  // Use an async.queue of concurrency 1 to ensure jobs are processed serially
+  var q = async.queue(function(task, cb) {
+    processJob(task, cb)
+  }, 1)
+
+  //
   // the queue.new_job event is primary way jobs are submitted
   //
-
   emitter.on('queue.new_job', function(data) {
-    if (!jobLock) { 
-      processJob(data)
-    } else {
-      simpleQueue.push(data)
-    }
+    q.push(data)
   })
 
-  function processJob(data) {
-    jobLock = true
-
+  function processJob(data, done) {
     // cross-process (per-job) output buffers
     var stderrBuffer = ""
     var stdoutBuffer = ""
@@ -275,11 +272,6 @@ function registerEvents(emitter) {
             deployExitCode:deployCode
           })
           if (typeof(cb) === 'function') cb(null)
-
-          jobLock = false
-          if (simpleQueue.length > 0) {
-            processJob(simpleQueue.shift())
-          }
         }
 
         // If actions are strings, we assume they are shell commands and try to execute them
@@ -327,7 +319,7 @@ function registerEvents(emitter) {
             striderMessage(msg)
             logger.log(msg)
             logger.log("stdmergedBuffer: %s", stdmergedBuffer);
-            return complete(prepareExitCode, null)
+            return complete(prepareExitCode, null, done)
           }
           test(context, function(testExitCode) {
             var msg = "Test exit code: " + testExitCode
@@ -335,11 +327,11 @@ function registerEvents(emitter) {
             striderMessage(msg)
             if (testExitCode !== 0 || data.job_type !== "TEST_AND_DEPLOY") {
               // Test step failed or no deploy requested
-              complete(testExitCode, null)
+              complete(testExitCode, null, done)
             } else {
               // Test step passed and deploy requested
               deploy(context, function(deployExitCode) {
-                complete(testExitCode, deployExitCode)
+                complete(testExitCode, deployExitCode, done)
               })
             }
 
