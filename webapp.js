@@ -220,7 +220,7 @@ function registerEvents(emitter) {
         updateStatus("queue.job_update", {stderr:buf})
       })
 
-      proc.on('exit', function(exitCode) {
+      proc.on('close', function(exitCode) {
         logger.log("process exited with code: %d", exitCode)
         cb(exitCode)
       })
