@@ -204,6 +204,9 @@ function registerEvents(emitter) {
       proc.stdoutBuffer = ""
       proc.stdmergedBuffer = ""
 
+      proc.stdout.setEncoding('utf8')
+      proc.stderr.setEncoding('utf8')
+
       proc.stdout.on('data', function(buf) {
         proc.stdoutBuffer += buf
         proc.stdmergedBuffer += buf
