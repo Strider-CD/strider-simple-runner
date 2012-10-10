@@ -97,7 +97,7 @@ describe('worker', function() {
   })
 
   describe('#forkProc', function() {
-    it('should honour environment parameters', function(done) {
+    it('should honour environment vars via opts arg', function(done) {
       var key = 'MY_TEST_VAR'
       var val = '12345'
       mockGumshoeResult = {
@@ -117,6 +117,39 @@ describe('worker', function() {
         containerCtx.emitter.emit('queue.new_job', {
           repo_ssh_url:"REPO_SSH_URL",
           repo_config: {
+            privkey: "REPO_CONFIG.PRIVKEY"
+          }
+        })
+      })
+    })
+
+    it('should honour environment vars via repo_config', function(done) {
+      var key = 'MY_TEST_VAR2'
+      var val = '54321'
+      var env = {}
+      env[key] = val
+      mockGumshoeResult = {
+        // Hook for ctx.forkProc
+        prepare: function(ctx, cb) {
+          var proc = ctx.forkProc(
+            {
+              cmd:"/usr/bin/env",
+              cwd:__dirname,
+              args:[],
+              env:{}
+            }, function(exitCode) {
+            expect(exitCode).to.eql(0)
+            expect(proc.stdoutBuffer).to.have.string('PAAS_NAME=strider')
+            expect(proc.stdoutBuffer).to.have.string(key + '=' + val)
+            done()
+          })
+        },
+      }
+      worker(containerCtx, function(err, z) {
+        containerCtx.emitter.emit('queue.new_job', {
+          repo_ssh_url:"REPO_SSH_URL",
+          repo_config: {
+            env:env,
             privkey: "REPO_CONFIG.PRIVKEY"
           }
         })

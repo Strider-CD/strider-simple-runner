@@ -8,7 +8,8 @@
     "gitane": "~0.0.5",
     "gumshoe": "~0.0.3",
     "npm": "~1.1.61",
-    "step": "~0.0.5"
+    "step": "~0.0.5",
+    "async": "~0.1.22"
   },
   "devDependencies": {
     "mocha": "~1.6.0",

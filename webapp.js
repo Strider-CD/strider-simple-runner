@@ -163,6 +163,13 @@ function registerEvents(emitter) {
       })
     }
 
+    function mergeObj(src, dst) {
+      var keys = Object.keys(src)
+      for (var i=0; i < keys.length; i++) {
+        dst[keys[i]] = src[keys[i]]
+      }
+    }
+
     //
     // forkProc(cwd, shell, cb)
     // or
@@ -172,15 +179,15 @@ function registerEvents(emitter) {
     //
     function forkProc(cwd, cmd, args, cb) {
       var env = process.env
+      if (data.repo_config.env !== undefined) {
+        mergeObj(data.repo_config.env, env)
+      }
       if (typeof(cwd) === 'object') {
         cb = cmd
         var cmd = cwd.cmd
         var args = cwd.args
         // Merge/override any variables
-        var keys = Object.keys(cwd.env)
-        for (var i=0; i < keys.length; i++) {
-          env[keys[i]] = cwd.env[keys[i]]
-        }
+        mergeObj(cwd.env, env)
         cwd = cwd.cwd
       }
       if (typeof(cmd) === 'string' && typeof(args) === 'function') {
