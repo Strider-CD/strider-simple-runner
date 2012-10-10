@@ -66,9 +66,6 @@ var teardownActions = []
 var simpleQueue = []
 var jobLock = false
 
-// Environment, by default, inherits from process.env
-var ENV = process.env
-
 // Return path to writeable dir for test purposes
 function getDataDir() {
   return path.join(__dirname, "_work")
@@ -177,7 +174,7 @@ function registerEvents(emitter) {
     // forkProc({opts}, cb)
     //
     function forkProc(cwd, cmd, args, cb) {
-      var env = ENV
+      var env = process.env
       if (typeof(cwd) === 'object') {
         cb = cmd
         var cmd = cwd.cmd
@@ -367,19 +364,6 @@ function addDetectionRule(r) {
   detectionRules = [r].concat(detectionRules)
 }
 
-// Set environment variables used by forkProc
-function setEnv(k, v) {
-  ENV[k] = v
-}
-
-// Get environment variables used by forkProc
-// *k* (optional) specific key to retrieve
-function getEnv(k) {
-  if (k) return ENV[k]
-
-  return ENV
-}
-
 module.exports = function(context, cb) {
   // XXX test purposes
   detectionRules = DEFAULT_PROJECT_TYPE_RULES
@@ -387,8 +371,6 @@ module.exports = function(context, cb) {
   var workerContext = {
     addDetectionRule:addDetectionRule,
     addDetectionRules:addDetectionRules,
-    getEnv: getEnv,
-    setEnv: setEnv,
     config: context.config,
     extdir: context.extdir,
     npmCmd: npmCmd,

@@ -100,14 +100,12 @@ describe('worker', function() {
     it('should honour environment parameters', function(done) {
       var key = 'MY_TEST_VAR'
       var val = '12345'
-      initExtensionsHook = function(ctx, cb) {
-        ctx.setEnv(key, val)
-        cb(null, [])
-      }
       mockGumshoeResult = {
         // Hook for ctx.forkProc
         prepare: function(ctx, cb) {
-          var proc = ctx.forkProc(__dirname, "/usr/bin/env", function(exitCode) {
+          var env = {}
+          env[key] = val
+          var proc = ctx.forkProc({cmd:"/usr/bin/env", cwd:__dirname, args:[], env:env}, function(exitCode) {
             expect(exitCode).to.eql(0)
             expect(proc.stdoutBuffer).to.have.string('PAAS_NAME=strider')
             expect(proc.stdoutBuffer).to.have.string(key + '=' + val)
