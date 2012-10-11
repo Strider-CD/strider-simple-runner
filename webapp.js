@@ -19,24 +19,13 @@ var npmCmd = "$(test -x ~/bin/node && echo ~/bin/node || echo node) ../../node_m
 var nodePrepare = npmCmd + " install"
 var nodeTest = npmCmd + " test"
 var nodeStart = npmCmd + " start"
-var virtualenvPath = path.join(__dirname, "thirdparty", "virtualenv.py")
-var djangoPrepare = "python " + virtualenvPath + " env && env/bin/pip -r requirements.txt"
-var djangoTest = "env/bin/python manage.py test"
-var setupPyPrepare = "python " + virtualenvPath + " env && env/bin/python setup.py develop ; env/bin/pip -r requirements.txt"
-var setupPyTest = "env/bin/python setup.py test"
 
 // Built-in rules for project-type detection
 var DEFAULT_PROJECT_TYPE_RULES = [
-
   // Node
   {filename:"package.json", grep:/express/i, language:"node.js", framework:"express", prepare:nodePrepare, test:nodeTest, start:nodeStart},
   {filename:"package.json", grep:/connect/i, language:"node.js", framework:"connect", prepare:nodePrepare, test:nodeTest, start:nodeStart},
   {filename:"package.json", exists:true, language:"node.js", framework:null, prepare:nodePrepare, test:nodeTest, start:nodeStart},
-  // Python
-  {filename:"setup.py", grep:/pyramid/i, language:"python", framework:"pyramid", prepare:setupPyPrepare, test:setupPyTest},
-  {filename:"manage.py", grep:/django/i, language:"python", framework:"django", prepare:djangoPrepare, test:djangoTest},
-  {filename:"setup.py", exists:true, language:"python", framework:null, prepare:setupPyPrepare, test:setupPyTest},
-
 ]
 
 // detection rules which may be added by worker plugins
