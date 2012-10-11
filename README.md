@@ -1,7 +1,7 @@
 Strider-simple-worker
 =====================
 
-![Worker Picture](http://farm5.staticflickr.com/4021/4679198588_b96aca3f3b_o.jpg)
+![Worker Picture](http://farm6.staticflickr.com/5187/5883651745_c17fb322df.jpg)
 
 Easy-to-configure in-process worker implementation for Strider Continous
 Deployment. This worker comes bundled with Strider. It is a Strider webapp extension which itself
@@ -20,5 +20,4 @@ Strider-simple-worker is released under a BSD license.
 Credits
 =======
 
-Picture of female munitions worker CC-BY Biblio Archives / LibraryArchives from
-http://www.flickr.com/photos/lac-bac/4679198588/sizes/o/in/photostream/
+Picture of worker ant CC-BY myprof from http://www.flickr.com/photos/myprofe/5883651745/sizes/m/in/photostream/
