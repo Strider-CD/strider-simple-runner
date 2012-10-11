@@ -5,4 +5,18 @@ strider-simple-worker
 
 Easy-to-configure in-process worker implementation for Strider Continous
 Deployment. This worker comes bundled with Strider. It is a Strider webapp
-extension which supports loading of Strider worker extensions.
+
+Tests
+=====
+
+strider-simple-worker comes with tests. To run, simply execute `npm test`.
+
+License
+=======
+
+strider-simple-worker is released under a BSD license.
+
+Credits
+=======
+
+Picture of female munitions worker CC-BY Biblio Archives / LibraryArchives from http://www.flickr.com/photos/lac-bac/4679198588/sizes/o/in/photostream/
