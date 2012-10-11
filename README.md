@@ -20,4 +20,4 @@ Strider-simple-worker is released under a BSD license.
 Credits
 =======
 
-Picture of worker ant CC-BY myprof from http://www.flickr.com/photos/myprofe/5883651745/sizes/m/in/photostream/
+Picture of worker ant CC-BY myprofe from http://www.flickr.com/photos/myprofe/5883651745/sizes/m/in/photostream/
