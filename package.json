@@ -19,6 +19,10 @@
   "engines": {
     "node": "*"
   },
+  "keywords": [
+    "strider",
+    "tests"
+  ],
   "scripts": {
     "test": "./node_modules/mocha/bin/mocha -R tap test"
   }
