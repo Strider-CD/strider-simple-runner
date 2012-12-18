@@ -261,6 +261,17 @@ function registerEvents(emitter) {
         prepare = test = deploy = function(context, cb) {
           cb(null)
         }
+        // If this job has a Heroku deploy config attached, use the Heroku deploy function
+        if (data.deploy_config) {
+          logger.log("have heroku config")
+          var self = this
+          deploy = function(ctx, cb) {
+            striderMessage("Deploying to Heroku ...")
+            deployHeroku(self.workingDir,
+              data.deploy_config.app, data.deploy_config.privkey, cb)
+          }
+        }
+
 
         function complete(testCode, deployCode, cb) {
           updateStatus("queue.job_complete", {
@@ -289,6 +300,13 @@ function registerEvents(emitter) {
             forkProc(self.workingDir, tsh.cmd, tsh.args, cb)
           }
         }
+
+        if (typeof(result.deploy) === 'string') {
+          var tsh = shellWrap(result.deploy)
+          deploy = function(context, cb) {
+            forkProc(self.workingDir, tsh.cmd, tsh.args, cb)
+          }
+        }
         // Execution actions may be delegated to functions.
         // This is useful for example for multi-step things like in Python where a virtual env must be set up.
         // Functions are of signature function(context, cb)
@@ -299,16 +317,8 @@ function registerEvents(emitter) {
         if (typeof(result.test) === 'function') {
           test = result.test
         }
-
-        // If this job has a Heroku deploy config attached, use the Heroku deploy function
-        if (data.deploy_config) {
-          logger.log("have heroku config")
-          var self = this
-          deploy = function(ctx, cb) {
-            striderMessage("Deploying to Heroku ...")
-            deployHeroku(self.workingDir,
-              data.deploy_config.app, data.deploy_config.privkey, cb)
-          }
+        if (typeof(result.deploy) === 'function') {
+          deploy = result.deploy
         }
 
         prepare(context, function(prepareExitCode) {
