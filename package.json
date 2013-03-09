@@ -2,11 +2,11 @@
   "author": "Niall O'Higgins <niallo@beyondfog.com> (http://niallohiggins.com)",
   "name": "strider-simple-worker",
   "description": "Simple in-process worker implementation for Strider",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "homepage": "http://github.com/Strider-CD/strider-simple-worker",
   "dependencies": {
     "gitane": "~0.0.5",
-    "gumshoe": "~0.0.3",
+    "gumshoe": "~0.2.0",
     "npm": "~1.1.61",
     "step": "~0.0.5",
     "async": "~0.1.22"
