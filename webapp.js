@@ -6,6 +6,7 @@
 
 var async = require('async')
 var exec = require('child_process').exec
+var EventEmitter = require('events').EventEmitter
 var gitane = require('gitane')
 var gumshoe = require('gumshoe')
 var path = require('path')
@@ -254,6 +255,7 @@ function registerEvents(emitter) {
           workingDir: this.workingDir,
           jobData: data,
           npmCmd: npmCmd,
+          events: new EventEmitter(),
         }
 
         // No-op defaults
