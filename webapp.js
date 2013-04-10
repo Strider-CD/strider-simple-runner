@@ -231,7 +231,7 @@ function registerEvents(emitter) {
         logger.log("cloning %s into %s", data.repo_ssh_url, dir)
         var msg = "Starting git clone of repo at " + data.repo_ssh_url
         striderMessage(msg)
-        gitane.run(dir, data.repo_config.privkey, 'git clone ' + data.repo_ssh_url, this)
+        gitane.run(dir, data.repo_config.privkey, 'git clone --recursive ' + data.repo_ssh_url, this)
       },
       function(err, stderr, stdout) {
         if (err) throw err
