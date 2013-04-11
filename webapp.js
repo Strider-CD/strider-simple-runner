@@ -136,7 +136,10 @@ function registerEvents(emitter) {
         updateStatus("queue.job_update", {stdout:stdout, stderr:stderr, stdmerged:stdout+stderr})
         cmd = 'git push heroku --force master'
         gitane.run(cwd, key, cmd, function(err, stdout, stderr) {
-          if (err) return cb(1, null)
+          if (err) {
+            striderMessage("Deployment to Heroku unsuccessful: %s", stdout+stderr)
+            return cb(1, null)
+          }
           stdoutBuffer += stdout
           stderrBuffer += stderr
           stdmergedBuffer += stdout + stderr
@@ -268,15 +271,17 @@ function registerEvents(emitter) {
 
         var f = []
 
+        var noHerokuYet = true
+
         phases.forEach(function(phase) {
           f.push(function(cb) {
             var h = []
 
             results.concat(buildHooks).forEach(function(result) {
 
-              console.log("running hook for phase: %s", phase)
 
               var hook = function(context, cb) {
+                console.log("running NO-OP hook for phase: %s", phase)
                 cb(0)
               }
 
@@ -286,6 +291,7 @@ function registerEvents(emitter) {
               if (typeof(result[phase]) === 'string') {
                 var psh = shellWrap(result[phase])
                 hook = function(context, cb) {
+                  console.log("running shell command hook for phase %s: %s", phase, result[phase])
                   forkProc(self.workingDir, psh.cmd, psh.args, cb)
                 }
               }
@@ -295,17 +301,29 @@ function registerEvents(emitter) {
               // Functions are of signature function(context, cb)
               // We assume the function handles any necessary shell interaction and sending of update messages.
               if (typeof(result[phase]) === 'function') {
-                hook = result[phase]
+                hook = function(ctx, cb) {
+                  console.log("running function hook for phase %s", phase)
+                  result[phase](ctx, cb)
+                }
               }
               
-              // If this job has a Heroku deploy config attached, override with Heroku deploy function
-              if (phase === 'deploy' && data.deploy_config) {
-                logger.log("have heroku config")
-                hook = function(ctx, cb) {
+              // If this job has a Heroku deploy config attached, add a single Heroku deploy function
+              if (phase === 'deploy' && data.deploy_config && noHerokuYet ) {
+                logger.log("have heroku config - adding heroku deploy build hook")
+                h.push(function(cb) {
                   striderMessage("Deploying to Heroku ...")
+                  console.log("running Heroku deploy hook")
                   deployHeroku(self.workingDir,
-                    data.deploy_config.app, data.deploy_config.privkey, cb)
-                }
+                    data.deploy_config.app, data.deploy_config.privkey, function(herokuDeployExitCode) { 
+                      if (herokuDeployExitCode !== 0) {
+                        return cb({phase: phase, code: herokuDeployExitCode}, false)
+                      }
+                      cb(null, {phase: phase, code: herokuDeployExitCode})
+                    }
+                  )
+                })
+                // Never want to add more than one Heroku deploy build hook
+                noHerokuYet = false
               }
 
               h.push(function(cb) {
@@ -327,7 +345,7 @@ function registerEvents(emitter) {
         async.series(f, function(err, results) {
             // make sure we run cleanup phase
             if (err && err.phase !== 'cleanup') {
-              return async.series(f[f.indexOf('cleanup')], function() {
+              return async.series(f[phases.indexOf('cleanup')], function() {
                 complete(err.code, null, done)
               })
             }
