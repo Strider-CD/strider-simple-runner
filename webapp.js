@@ -12,6 +12,7 @@ var gumshoe = require('gumshoe')
 var path = require('path')
 var spawn = require('child_process').spawn
 var Step = require('step')
+var fs = require('fs')
 
 
 // Work around npm not being installed on some systems - use own copy
@@ -223,15 +224,30 @@ function registerEvents(emitter) {
 
     Step(
       function() {
-        // XXX: Support incremental builds at some point
-        exec('rm -rf ' + dir + ' ; mkdir -p ' + dir, this)
-      },
-      function(err) {
-        if (err) throw err
-        logger.log("cloning %s into %s", data.repo_ssh_url, dir)
-        var msg = "Starting git clone of repo at " + data.repo_ssh_url
-        striderMessage(msg)
-        gitane.run(dir, data.repo_config.privkey, 'git clone --recursive ' + data.repo_ssh_url, this)
+        var next = this;
+        // Check if there's a git repo or not:
+        var workingDir = path.join(dir, path.basename(data.repo_ssh_url.replace('.git', '')))
+        console.log(workingDir);
+        if (fs.existsSync(workingDir + '/.git')){
+          // Assume that the repo is good and that there are no
+          // local-only commits.
+          // TODO: Maybe fix this?
+          // TODO: This assumes there will never be another repo with the same name :( would be better to clone into dir named after ssh_url
+          var msg = "Updating repo from " + data.repo_ssh_url
+          striderMessage(msg)
+          gitane.run(workingDir, data.repo_config.privkey, 'git reset --hard', function(err){
+            if(err) throw err;
+            gitane.run(workingDir, data.repo_config.privkey, 'git pull', next);
+          })
+        } else {
+          exec('rm -rf ' + dir + ' ; mkdir -p ' + dir, function(err){
+            if (err) throw err
+            logger.log("cloning %s into %s", data.repo_ssh_url, dir)
+            var msg = "Starting git clone of repo at " + data.repo_ssh_url
+            striderMessage(msg)
+            gitane.run(dir, data.repo_config.privkey, 'git clone --recursive ' + data.repo_ssh_url, next)
+          })
+        }
       },
       function(err, stderr, stdout) {
         if (err) throw err
