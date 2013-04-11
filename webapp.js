@@ -24,8 +24,6 @@ var nodeStart = npmCmd + " start"
 // Built-in rules for project-type detection
 var DEFAULT_PROJECT_TYPE_RULES = [
   // Node
-  {filename:"package.json", grep:/express/i, language:"node.js", framework:"express", prepare:nodePrepare, test:nodeTest, start:nodeStart},
-  {filename:"package.json", grep:/connect/i, language:"node.js", framework:"connect", prepare:nodePrepare, test:nodeTest, start:nodeStart},
   {filename:"package.json", exists:true, language:"node.js", framework:null, prepare:nodePrepare, test:nodeTest, start:nodeStart},
 ]
 
@@ -38,21 +36,17 @@ var DEFAULT_PROJECT_TYPE_RULES = [
 // preparations (e.g. "npm install")
 //
 var detectionRules = []
-// pre-start commands which may be added by worker plugins
-// E.g. to start mongodb or postgresql
-// pre-start commands may be either a string or a function
-// XXX: foreground vs daemonprocesses
 
-// if a string, this is a shell command to be executed to run project tests (e.g. "mongod")
-// if a function, this accepts a callback argument of signature function(err) which must be called.
-var setupActions = []
-// teardown commands which may be added by worker plugins
-// E.g. to stop mongodb or postgresql
-// teardown commands may be either a string or a function
-// XXX: foreground vs daemonprocesses
-// if a string, this is a shell command to be executed to run project tests (e.g. "kill $PID")
-// if a function, this accepts a callback argument of signature function(err) which must be called.
-var teardownActions = []
+// build hooks which may be added by worker plugins.
+// A build hook is the same as a detection rule, but there is no predicate and it is *always* run on each job.
+// Build hooks consist of an object with optional properties "test", "prepare", "deploy" and "cleanup". 
+// Build hooks are useful for plugins that implement explicit build phases e.g. setting up a BrowserStack tunnel.
+// Plugins can no-op their build hook functions at runtime for repos that do not have them configured, or 
+// don't need them for other reasons.
+//
+// This enables more customization logic to move to plugins.
+//
+var buildHooks = []
 
 // Return path to writeable dir for test purposes
 function getDataDir() {
@@ -242,10 +236,21 @@ function registerEvents(emitter) {
         striderMessage(msg)
         gumshoe.run(this.workingDir, detectionRules, this)
       },
-      function(err, result) {
+      function(err, result, results) {
         if (err) throw err
-        // TODO: Setup phase (database bringup, etc)
+        var done = false
 
+        function complete(testCode, deployCode, cb) {
+          updateStatus("queue.job_complete", {
+            stderr:stderrBuffer,
+            stdout:stdoutBuffer,
+            stdmerged:stdmergedBuffer,
+            testExitCode:testCode,
+            deployExitCode:deployCode
+          })
+          if (typeof(cb) === 'function') cb(null)
+        }
+        
         // Context object for action functions
         var context = {
           forkProc: forkProc,
@@ -258,101 +263,74 @@ function registerEvents(emitter) {
           events: new EventEmitter(),
         }
 
-        // No-op defaults
-        var prepare, test, deploy
-        prepare = test = deploy = function(context, cb) {
-          cb(null)
-        }
-        // If this job has a Heroku deploy config attached, use the Heroku deploy function
-        if (data.deploy_config) {
-          logger.log("have heroku config")
-          var self = this
-          deploy = function(ctx, cb) {
-            striderMessage("Deploying to Heroku ...")
-            deployHeroku(self.workingDir,
-              data.deploy_config.app, data.deploy_config.privkey, cb)
-          }
-        }
-
-
-        function complete(testCode, deployCode, cb) {
-          updateStatus("queue.job_complete", {
-            stderr:stderrBuffer,
-            stdout:stdoutBuffer,
-            stdmerged:stdmergedBuffer,
-            testExitCode:testCode,
-            deployExitCode:deployCode
-          })
-          if (typeof(cb) === 'function') cb(null)
-        }
-
-        // If actions are strings, we assume they are shell commands and try to execute them
-        // directly ourselves.
         var self = this
-        if (typeof(result.prepare) === 'string') {
-          var psh = shellWrap(result.prepare)
-          prepare = function(context, cb) {
-            forkProc(self.workingDir, psh.cmd, psh.args, cb)
-          }
-        }
 
-        if (typeof(result.test) === 'string') {
-          var tsh = shellWrap(result.test)
-          test = function(context, cb) {
-            forkProc(self.workingDir, tsh.cmd, tsh.args, cb)
-          }
-        }
+        var phases = ['prepare', 'test', 'deploy', 'cleanup']
 
-        if (typeof(result.deploy) === 'string') {
-          var tsh = shellWrap(result.deploy)
-          deploy = function(context, cb) {
-            forkProc(self.workingDir, tsh.cmd, tsh.args, cb)
-          }
-        }
-        // Execution actions may be delegated to functions.
-        // This is useful for example for multi-step things like in Python where a virtual env must be set up.
-        // Functions are of signature function(context, cb)
-        // We assume the function handles any necessary shell interaction and sending of update messages.
-        if (typeof(result.prepare) === 'function') {
-          prepare = result.prepare
-        }
-        if (typeof(result.test) === 'function') {
-          test = result.test
-        }
-        if (typeof(result.deploy) === 'function') {
-          deploy = result.deploy
-        }
+        var f = []
 
-        prepare(context, function(prepareExitCode) {
-          if (prepareExitCode !== 0) {
-            // Prepare step failed
-            var msg = "Prepare failed; exit code: " + prepareExitCode
-            striderMessage(msg)
-            logger.log(msg)
-            logger.log("stdmergedBuffer: %s", stdmergedBuffer);
-            return complete(prepareExitCode, null, done)
-          }
-          test(context, function(testExitCode) {
-            var msg = "Test exit code: " + testExitCode
-            logger.log(msg)
-            striderMessage(msg)
-            if (testExitCode !== 0 || data.job_type !== "TEST_AND_DEPLOY") {
-              // Test step failed or no deploy requested
-              complete(testExitCode, null, done)
-            } else {
-              // Test step passed and deploy requested
-              deploy(context, function(deployExitCode) {
-                complete(testExitCode, deployExitCode, done)
+        phases.forEach(function(phase) {
+          f.push(function(cb) {
+            var h = []
+
+            results.concat(buildHooks).forEach(function(result) {
+
+              console.log("running hook for phase: %s", phase)
+
+              var hook = function(context, cb) {
+                cb(0)
+              }
+
+              // If this job has a Heroku deploy config attached, use the Heroku deploy function
+              if (phase === 'deploy' && data.deploy_config) {
+                logger.log("have heroku config")
+                hook = function(ctx, cb) {
+                  striderMessage("Deploying to Heroku ...")
+                  deployHeroku(self.workingDir,
+                    data.deploy_config.app, data.deploy_config.privkey, cb)
+                }
+              }
+
+              // If actions are strings, we assume they are shell commands and try to execute them
+              // directly ourselves.
+              if (typeof(result[phase]) === 'string') {
+                var psh = shellWrap(result[phase])
+                hook = function(context, cb) {
+                  forkProc(self.workingDir, psh.cmd, psh.args, cb)
+                }
+              }
+
+              // Execution actions may be delegated to functions.
+              // This is useful for example for multi-step things like in Python where a virtual env must be set up.
+              // Functions are of signature function(context, cb)
+              // We assume the function handles any necessary shell interaction and sending of update messages.
+              if (typeof(result[phase]) === 'function') {
+                hook = result[phase]
+              }
+
+              // XXX make sure we run cleanup phase
+              h.push(function(cb) {
+                hook(context, function(hookExitCode) {
+                  if (hookExitCode !== 0) {
+                    return cb({phase: phase, code: hookExitCode}, false)
+                  }
+                  cb(null, {phase: phase, code: hookExitCode})
+                })
               })
-            }
 
+            })
+            async.series(h, function(err, results) {
+              cb(err)
+            })
           })
         })
-
-        // TODO: Teardown phase (database shutdown, etc)
-
+        async.series(f, function(err, results) {
+            if (err) {
+              return complete(err.code, null, done)
+            }
+            return complete(0, null, done)
+        })
       }
-
     )
   }
 }
@@ -367,6 +345,16 @@ function addDetectionRule(r) {
   detectionRules = [r].concat(detectionRules)
 }
 
+// Add an array of build hooks to head of list
+function addBuildHooks(h) {
+  buildHooks = h.concat(buildHooks)
+}
+
+// Add a single build hook to the head of the list.
+function addBuildHook(h) {
+  buildHooks = [h].concat(buildHooks)
+}
+
 module.exports = function(context, cb) {
   // XXX test purposes
   detectionRules = DEFAULT_PROJECT_TYPE_RULES
@@ -374,6 +362,8 @@ module.exports = function(context, cb) {
   var workerContext = {
     addDetectionRule:addDetectionRule,
     addDetectionRules:addDetectionRules,
+    addBuildHook:addBuildHook,
+    addBuildHooks:addBuildHooks,
     config: context.config,
     extdir: context.extdir,
     npmCmd: npmCmd,
