@@ -238,7 +238,6 @@ function registerEvents(emitter) {
       },
       function(err, result, results) {
         if (err) throw err
-        var done = false
 
         function complete(testCode, deployCode, cb) {
           updateStatus("queue.job_complete", {
@@ -281,15 +280,6 @@ function registerEvents(emitter) {
                 cb(0)
               }
 
-              // If this job has a Heroku deploy config attached, use the Heroku deploy function
-              if (phase === 'deploy' && data.deploy_config) {
-                logger.log("have heroku config")
-                hook = function(ctx, cb) {
-                  striderMessage("Deploying to Heroku ...")
-                  deployHeroku(self.workingDir,
-                    data.deploy_config.app, data.deploy_config.privkey, cb)
-                }
-              }
 
               // If actions are strings, we assume they are shell commands and try to execute them
               // directly ourselves.
@@ -307,11 +297,21 @@ function registerEvents(emitter) {
               if (typeof(result[phase]) === 'function') {
                 hook = result[phase]
               }
+              
+              // If this job has a Heroku deploy config attached, override with Heroku deploy function
+              if (phase === 'deploy' && data.deploy_config) {
+                logger.log("have heroku config")
+                hook = function(ctx, cb) {
+                  striderMessage("Deploying to Heroku ...")
+                  deployHeroku(self.workingDir,
+                    data.deploy_config.app, data.deploy_config.privkey, cb)
+                }
+              }
 
-              // XXX make sure we run cleanup phase
               h.push(function(cb) {
                 hook(context, function(hookExitCode) {
-                  if (hookExitCode !== 0) {
+                  // Cleanup hooks can't fail
+                  if (phase !== 'cleanup' && hookExitCode !== 0) {
                     return cb({phase: phase, code: hookExitCode}, false)
                   }
                   cb(null, {phase: phase, code: hookExitCode})
@@ -325,8 +325,11 @@ function registerEvents(emitter) {
           })
         })
         async.series(f, function(err, results) {
-            if (err) {
-              return complete(err.code, null, done)
+            // make sure we run cleanup phase
+            if (err && err.phase !== 'cleanup') {
+              return async.series(f[f.indexOf('cleanup')], function() {
+                complete(err.code, null, done)
+              })
             }
             return complete(0, null, done)
         })
