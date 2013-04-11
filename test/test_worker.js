@@ -28,7 +28,7 @@ describe('worker', function() {
     // Mock gumshoe module
     mockGumshoe = {
       run:function(dir, rules, cb) {
-        cb(null, mockGumshoeResult)
+        cb(null, mockGumshoeResult, [mockGumshoeResult])
       }
     }
     initExtensionsHook = function(ctx, cb) { return cb(null, []) }
