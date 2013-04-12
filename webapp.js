@@ -295,7 +295,6 @@ function registerEvents(emitter) {
 
             results.concat(buildHooks).forEach(function(result) {
 
-
               var hook = function(context, cb) {
                 console.log("running NO-OP hook for phase: %s", phase)
                 cb(0)
@@ -322,7 +321,7 @@ function registerEvents(emitter) {
                   result[phase](ctx, cb)
                 }
               }
-              
+
               // If this job has a Heroku deploy config attached, add a single Heroku deploy function
               if (phase === 'deploy' && data.deploy_config && noHerokuYet ) {
                 logger.log("have heroku config - adding heroku deploy build hook")
@@ -344,6 +343,7 @@ function registerEvents(emitter) {
 
               h.push(function(cb) {
                 hook(context, function(hookExitCode) {
+                  console.log("hook for phase %s complete", phase)
                   // Cleanup hooks can't fail
                   if (phase !== 'cleanup' && hookExitCode !== 0) {
                     return cb({phase: phase, code: hookExitCode}, false)
@@ -361,7 +361,9 @@ function registerEvents(emitter) {
         async.series(f, function(err, results) {
             // make sure we run cleanup phase
             if (err && err.phase !== 'cleanup') {
-              return async.series(f[phases.indexOf('cleanup')], function() {
+              console.log("Failure in phase %s, running cleanup and failing build", err.phase)
+              var runCleanup = f[phases.indexOf('cleanup')]
+              return runCleanup(function(e) {
                 complete(err.code, null, done)
               })
             }
