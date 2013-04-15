@@ -428,7 +428,7 @@ module.exports = function(context, cb) {
     },
     function(err, initialized) {
       registerEvents(context.emitter)
-      logger.log("Strider Simple Worker ready")
+      logger.log("strider-simple-worker ready")
       cb(null, null)
     }
   )
