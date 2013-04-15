@@ -296,7 +296,7 @@ function registerEvents(emitter) {
             results.concat(buildHooks).forEach(function(result) {
 
               var hook = function(context, cb) {
-                console.log("running NO-OP hook for phase: %s", phase)
+                console.debug("running NO-OP hook for phase: %s", phase)
                 cb(0)
               }
 
@@ -306,7 +306,7 @@ function registerEvents(emitter) {
               if (typeof(result[phase]) === 'string') {
                 var psh = shellWrap(result[phase])
                 hook = function(context, cb) {
-                  console.log("running shell command hook for phase %s: %s", phase, result[phase])
+                  console.debug("running shell command hook for phase %s: %s", phase, result[phase])
                   forkProc(self.workingDir, psh.cmd, psh.args, cb)
                 }
               }
@@ -317,7 +317,7 @@ function registerEvents(emitter) {
               // We assume the function handles any necessary shell interaction and sending of update messages.
               if (typeof(result[phase]) === 'function') {
                 hook = function(ctx, cb) {
-                  console.log("running function hook for phase %s", phase)
+                  console.debug("running function hook for phase %s", phase)
                   result[phase](ctx, cb)
                 }
               }
@@ -327,7 +327,7 @@ function registerEvents(emitter) {
                 logger.log("have heroku config - adding heroku deploy build hook")
                 h.push(function(cb) {
                   striderMessage("Deploying to Heroku ...")
-                  console.log("running Heroku deploy hook")
+                  console.debug("running Heroku deploy hook")
                   deployHeroku(self.workingDir,
                     data.deploy_config.app, data.deploy_config.privkey, function(herokuDeployExitCode) { 
                       if (herokuDeployExitCode !== 0) {
@@ -343,7 +343,7 @@ function registerEvents(emitter) {
 
               h.push(function(cb) {
                 hook(context, function(hookExitCode) {
-                  console.log("hook for phase %s complete", phase)
+                  console.debug("hook for phase %s complete", phase)
                   // Cleanup hooks can't fail
                   if (phase !== 'cleanup' && hookExitCode !== 0) {
                     return cb({phase: phase, code: hookExitCode}, false)
@@ -361,7 +361,7 @@ function registerEvents(emitter) {
         async.series(f, function(err, results) {
             // make sure we run cleanup phase
             if (err && err.phase !== 'cleanup') {
-              console.log("Failure in phase %s, running cleanup and failing build", err.phase)
+              console.debug("Failure in phase %s, running cleanup and failing build", err.phase)
               var runCleanup = f[phases.indexOf('cleanup')]
               return runCleanup(function(e) {
                 complete(err.code, null, done)
