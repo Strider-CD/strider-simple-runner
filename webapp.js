@@ -345,7 +345,7 @@ function registerEvents(emitter) {
                 hook(context, function(hookExitCode) {
                   console.debug("hook for phase %s complete", phase)
                   // Cleanup hooks can't fail
-                  if (phase !== 'cleanup' && hookExitCode !== 0) {
+                  if (phase !== 'cleanup' && hookExitCode !== 0 && hookExitCode !== undefined && hookExitCode !== null) {
                     return cb({phase: phase, code: hookExitCode}, false)
                   }
                   cb(null, {phase: phase, code: hookExitCode})
