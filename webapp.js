@@ -258,11 +258,23 @@ function registerEvents(emitter) {
       if (typeof(cb) === 'function') cb(null)
     }
 
+    var workingDir = path.join(dir, path.basename(data.repo_ssh_url.replace('.git', '')))
+    // Context object for build hooks
+    var context = {
+      forkProc: forkProc,
+      updateStatus: updateStatus,
+      striderMessage: striderMessage,
+      shellWrap:shellWrap,
+      workingDir: workingDir,
+      jobData: data,
+      npmCmd: npmCmd,
+      events: new EventEmitter(),
+    }
+
     Step(
       function() {
-        var next = this;
+        var next = this
         // Check if there's a git repo or not:
-        var workingDir = path.join(dir, path.basename(data.repo_ssh_url.replace('.git', '')))
         if (fs.existsSync(workingDir + '/.git')){
           // Assume that the repo is good and that there are no
           // local-only commits.
@@ -297,32 +309,29 @@ function registerEvents(emitter) {
       function(err, stderr, stdout) {
         if (err)  {
           striderMessage("[ERROR] Git failure: " + stdout + stderr)
+          logger.log("[ERROR] Git failure: " + stdout + stderr)
           return complete(1, null, done)
         }
-        var next = this;
-        this.workingDir = path.join(dir, path.basename(data.repo_ssh_url.replace('.git', '')))
+        var next = this
         updateStatus("queue.job_update", {stdout:stdout, stderr:stderr, stdmerged:stdout+stderr})
         var msg = "Git clone complete"
         logger.log(msg)
         striderMessage(msg)
-        gumshoe.run(this.workingDir, detectionRules, this)
+        processDetectionRules(detectionRules, context, function(err, rules) {
+          if (err) {
+            var msg = "[ERROR] Could not process detection rules: " + err
+            striderMessage(msg)
+            logger.log(msg)
+            return complete(1, null, done)
+          }
+          gumshoe.run(workingDir, rules, next)
+        })
       },
       function(err, result, results) {
         if (err)  {
           striderMessage("[ERROR] Gumshoe failure, no detection rules matched: " + err)
+          console.log("ERROR: ", err)
           return complete(1, null, done)
-        }
-
-        // Context object for action functions
-        var context = {
-          forkProc: forkProc,
-          updateStatus: updateStatus,
-          striderMessage: striderMessage,
-          shellWrap:shellWrap,
-          workingDir: this.workingDir,
-          jobData: data,
-          npmCmd: npmCmd,
-          events: new EventEmitter(),
         }
 
         var self = this
@@ -351,7 +360,7 @@ function registerEvents(emitter) {
                 var psh = shellWrap(result[phase])
                 hook = function(context, cb) {
                   logger.debug("running shell command hook for phase %s: %s", phase, result[phase])
-                  forkProc(self.workingDir, psh.cmd, psh.args, cb)
+                  forkProc(workingDir, psh.cmd, psh.args, cb)
                 }
               }
 
@@ -372,7 +381,7 @@ function registerEvents(emitter) {
                 h.push(function(cb) {
                   striderMessage("Deploying to Heroku ...")
                   logger.debug("running Heroku deploy hook")
-                  deployHeroku(self.workingDir,
+                  deployHeroku(workingDir,
                     data.deploy_config.app, data.deploy_config.privkey, function(herokuDeployExitCode) { 
                       if (herokuDeployExitCode !== 0) {
                         return cb({phase: phase, code: herokuDeployExitCode}, false)
