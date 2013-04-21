@@ -2,6 +2,107 @@ var expect = require('chai').expect
 var EventEmitter = require('events').EventEmitter
 var worker = require('../webapp')
 
+describe('functions', function() {
+
+  describe('#processDetectionRules', function() {
+
+    it('should ignore filenames which are already strings', function(done) {
+
+      // Pass 'true' as 3rd arg to get an object of private functions for testing
+      var processDetectionRules = worker(null, null, true).processDetectionRules
+      expect(processDetectionRules).to.be.a('function')
+
+      var ctx = {
+        data: {someData:true}
+      }
+      var rules = [{
+        filename:"foo.js",
+        exists:true
+      }, {
+        filename:"foo2.js",
+        exists:true
+      }]
+
+      processDetectionRules(rules, ctx, function(err, results) {
+        expect(err).to.be.null
+        expect(results).to.have.length(2)
+        expect(results).to.contain(rules[0])
+        expect(results).to.contain(rules[1])
+        done()
+      })
+
+    })
+
+    it('should process filename function types', function(done) {
+      // Pass 'true' as 3rd arg to get an object of private functions for testing
+      var processDetectionRules = worker(null, null, true).processDetectionRules
+
+      var ctx = {
+        data: {someData:true}
+      }
+      var rules = [
+        {
+          filename:"foo.js",
+          exists:true
+        },
+        {
+          filename:"foo2.js",
+          exists:true
+        },
+        {
+          filename:function(tctx, cb) {
+            expect(tctx.data).to.exist
+            expect(tctx.data.someData).to.eql(ctx.data.someData)
+            cb(null, "foo3.js")
+          },
+          exists: true
+        }
+      ]
+
+      processDetectionRules(rules, ctx, function(err, results) {
+        expect(err).to.be.null
+        expect(results).to.have.length(3)
+        expect(results).to.contain(rules[0])
+        expect(results).to.contain(rules[1])
+        expect(results[2]).to.eql({exists:true, filename:"foo3.js"})
+        done()
+      })
+    })
+
+    it('should handle errors', function(done) {
+      // Pass 'true' as 3rd arg to get an object of private functions for testing
+      var processDetectionRules = worker(null, null, true).processDetectionRules
+
+      var ctx = {
+        data: {someData:true}
+      }
+      var rules = [
+        {
+          filename:"foo.js",
+          exists:true
+        },
+        {
+          filename:"foo2.js",
+          exists:true
+        },
+        {
+          filename:function(tctx, cb) {
+            cb("problem!", null)
+          },
+          exists: true
+        }
+      ]
+
+      processDetectionRules(rules, ctx, function(err, results) {
+        expect(err).to.exist
+        expect(err).to.eql('problem!')
+        expect(results).to.be.null
+        done()
+      })
+    })
+  })
+})
+
 describe('worker', function() {
 
   // Hook for initExtensions call
