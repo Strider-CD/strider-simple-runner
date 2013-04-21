@@ -224,7 +224,6 @@ function registerEvents(emitter) {
         var next = this;
         // Check if there's a git repo or not:
         var workingDir = path.join(dir, path.basename(data.repo_ssh_url.replace('.git', '')))
-        console.log(workingDir);
         if (fs.existsSync(workingDir + '/.git')){
           // Assume that the repo is good and that there are no
           // local-only commits.
