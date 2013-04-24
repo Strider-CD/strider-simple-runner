@@ -59,8 +59,37 @@ function shellWrap(str) {
   return { cmd:"sh", args:["-c", str] }
 }
 
+// Pre-process detection rules - some can have properties which are async functions
+function processDetectionRules(rules, ctx, cb) {
+  // filename property of detection rules can be a function
+  var processedRules = []
+  var f = []
+  rules.forEach(function(rule) {
+    if (rule.filename && typeof(rule.filename) == 'function') {
+      f.push(function(cb) {
+        rule.filename(ctx, function(err, result) {
+          if (err) return cb(err, {rule: rule, filename: null})
+          return cb(null, {rule: rule, filename: result})
+        })
+      })
+      return
+    } 
+    processedRules.push(rule)
+  })
+
+  async.parallel(f, function(err, results) {
+    if (err) return cb(err, null)
+
+    results.forEach(function(res) {
+      res.rule.filename = res.filename
+      processedRules.push(res.rule)
+    })
+    cb(null, processedRules)
+  })
+}
+
 // Default logger
-logger = {log: console.log}
+logger = {log: console.log, debug: console.debug}
 
 function registerEvents(emitter) {
 
@@ -218,13 +247,34 @@ function registerEvents(emitter) {
 
       return proc
     }
+    function complete(testCode, deployCode, cb) {
+      updateStatus("queue.job_complete", {
+        stderr:stderrBuffer,
+        stdout:stdoutBuffer,
+        stdmerged:stdmergedBuffer,
+        testExitCode:testCode,
+        deployExitCode:deployCode
+      })
+      if (typeof(cb) === 'function') cb(null)
+    }
+
+    var workingDir = path.join(dir, path.basename(data.repo_ssh_url.replace('.git', '')))
+    // Context object for build hooks
+    var context = {
+      forkProc: forkProc,
+      updateStatus: updateStatus,
+      striderMessage: striderMessage,
+      shellWrap:shellWrap,
+      workingDir: workingDir,
+      jobData: data,
+      npmCmd: npmCmd,
+      events: new EventEmitter(),
+    }
 
     Step(
       function() {
-        var next = this;
+        var next = this
         // Check if there's a git repo or not:
-        var workingDir = path.join(dir, path.basename(data.repo_ssh_url.replace('.git', '')))
-        console.log(workingDir);
         if (fs.existsSync(workingDir + '/.git')){
           // Assume that the repo is good and that there are no
           // local-only commits.
@@ -232,13 +282,23 @@ function registerEvents(emitter) {
           // TODO: This assumes there will never be another repo with the same name :( would be better to clone into dir named after ssh_url
           var msg = "Updating repo from " + data.repo_ssh_url
           striderMessage(msg)
-          gitane.run(workingDir, data.repo_config.privkey, 'git reset --hard', function(err){
-            if(err) throw err;
-            gitane.run(workingDir, data.repo_config.privkey, 'git pull', next);
+          gitane.run(workingDir, data.repo_config.privkey, 'git reset --hard', function(err, stdout, stderr) {
+            if (err) {
+              striderMessage("[ERROR] Git failure: " + stdout + stderr)
+              return complete(1, null, done)
+            }
+
+            // XXX: `master branch` not guaranteed to exist. how do you find the default branch?
+            gitane.run(workingDir, data.repo_config.privkey, 'git checkout master', function(err, stdout, stderr) {
+              if (err)  {
+                striderMessage("[ERROR] Git failure: " + stdout + stderr)
+                return complete(1, null, done)
+              }
+              gitane.run(workingDir, data.repo_config.privkey, 'git pull', next)
+            })
           })
         } else {
-          exec('rm -rf ' + dir + ' ; mkdir -p ' + dir, function(err){
-            if (err) throw err
+          exec('rm -rf ' + dir + ' ; mkdir -p ' + dir, function(err) {
             logger.log("cloning %s into %s", data.repo_ssh_url, dir)
             var msg = "Starting git clone of repo at " + data.repo_ssh_url
             striderMessage(msg)
@@ -247,38 +307,31 @@ function registerEvents(emitter) {
         }
       },
       function(err, stderr, stdout) {
-        if (err) throw err
-        this.workingDir = path.join(dir, path.basename(data.repo_ssh_url.replace('.git', '')))
+        if (err)  {
+          striderMessage("[ERROR] Git failure: " + stdout + stderr)
+          logger.log("[ERROR] Git failure: " + stdout + stderr)
+          return complete(1, null, done)
+        }
+        var next = this
         updateStatus("queue.job_update", {stdout:stdout, stderr:stderr, stdmerged:stdout+stderr})
         var msg = "Git clone complete"
         logger.log(msg)
         striderMessage(msg)
-        gumshoe.run(this.workingDir, detectionRules, this)
+        processDetectionRules(detectionRules, context, function(err, rules) {
+          if (err) {
+            var msg = "[ERROR] Could not process detection rules: " + err
+            striderMessage(msg)
+            logger.log(msg)
+            return complete(1, null, done)
+          }
+          gumshoe.run(workingDir, rules, next)
+        })
       },
       function(err, result, results) {
-        if (err) throw err
-
-        function complete(testCode, deployCode, cb) {
-          updateStatus("queue.job_complete", {
-            stderr:stderrBuffer,
-            stdout:stdoutBuffer,
-            stdmerged:stdmergedBuffer,
-            testExitCode:testCode,
-            deployExitCode:deployCode
-          })
-          if (typeof(cb) === 'function') cb(null)
-        }
-        
-        // Context object for action functions
-        var context = {
-          forkProc: forkProc,
-          updateStatus: updateStatus,
-          striderMessage: striderMessage,
-          shellWrap:shellWrap,
-          workingDir: this.workingDir,
-          jobData: data,
-          npmCmd: npmCmd,
-          events: new EventEmitter(),
+        if (err)  {
+          striderMessage("[ERROR] Gumshoe failure, no detection rules matched: " + err)
+          console.log("ERROR: ", err)
+          return complete(1, null, done)
         }
 
         var self = this
@@ -296,7 +349,7 @@ function registerEvents(emitter) {
             results.concat(buildHooks).forEach(function(result) {
 
               var hook = function(context, cb) {
-                console.debug("running NO-OP hook for phase: %s", phase)
+                logger.debug("running NO-OP hook for phase: %s", phase)
                 cb(0)
               }
 
@@ -306,8 +359,8 @@ function registerEvents(emitter) {
               if (typeof(result[phase]) === 'string') {
                 var psh = shellWrap(result[phase])
                 hook = function(context, cb) {
-                  console.debug("running shell command hook for phase %s: %s", phase, result[phase])
-                  forkProc(self.workingDir, psh.cmd, psh.args, cb)
+                  logger.debug("running shell command hook for phase %s: %s", phase, result[phase])
+                  forkProc(workingDir, psh.cmd, psh.args, cb)
                 }
               }
 
@@ -317,7 +370,7 @@ function registerEvents(emitter) {
               // We assume the function handles any necessary shell interaction and sending of update messages.
               if (typeof(result[phase]) === 'function') {
                 hook = function(ctx, cb) {
-                  console.debug("running function hook for phase %s", phase)
+                  logger.debug("running function hook for phase %s", phase)
                   result[phase](ctx, cb)
                 }
               }
@@ -327,8 +380,8 @@ function registerEvents(emitter) {
                 logger.log("have heroku config - adding heroku deploy build hook")
                 h.push(function(cb) {
                   striderMessage("Deploying to Heroku ...")
-                  console.debug("running Heroku deploy hook")
-                  deployHeroku(self.workingDir,
+                  logger.debug("running Heroku deploy hook")
+                  deployHeroku(workingDir,
                     data.deploy_config.app, data.deploy_config.privkey, function(herokuDeployExitCode) { 
                       if (herokuDeployExitCode !== 0) {
                         return cb({phase: phase, code: herokuDeployExitCode}, false)
@@ -343,9 +396,9 @@ function registerEvents(emitter) {
 
               h.push(function(cb) {
                 hook(context, function(hookExitCode) {
-                  console.debug("hook for phase %s complete", phase)
+                  logger.debug("hook for phase %s complete", phase)
                   // Cleanup hooks can't fail
-                  if (phase !== 'cleanup' && hookExitCode !== 0) {
+                  if (phase !== 'cleanup' && hookExitCode !== 0 && hookExitCode !== undefined && hookExitCode !== null) {
                     return cb({phase: phase, code: hookExitCode}, false)
                   }
                   cb(null, {phase: phase, code: hookExitCode})
@@ -361,7 +414,7 @@ function registerEvents(emitter) {
         async.series(f, function(err, results) {
             // make sure we run cleanup phase
             if (err && err.phase !== 'cleanup') {
-              console.debug("Failure in phase %s, running cleanup and failing build", err.phase)
+              logger.debug("Failure in phase %s, running cleanup and failing build", err.phase)
               var runCleanup = f[phases.indexOf('cleanup')]
               return runCleanup(function(e) {
                 complete(err.code, null, done)
@@ -394,9 +447,15 @@ function addBuildHook(h) {
   buildHooks = [h].concat(buildHooks)
 }
 
-module.exports = function(context, cb) {
+module.exports = function(context, cb, isTest) {
   // XXX test purposes
   detectionRules = DEFAULT_PROJECT_TYPE_RULES
+  // Way to get functions out to tests
+  if (isTest) {
+    return {
+      processDetectionRules: processDetectionRules
+    }
+  }
   // Build a worker context, which is a stripped-down version of the webapp context
   var workerContext = {
     addDetectionRule:addDetectionRule,
@@ -419,7 +478,7 @@ module.exports = function(context, cb) {
     exec = context.exec
   }
   if (context.log) {
-    logger = {log: context.log}
+    logger = {log: context.log, debug: context.log}
   }
 
   Step(
