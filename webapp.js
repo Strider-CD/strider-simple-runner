@@ -268,40 +268,7 @@ function registerEvents(emitter) {
     }
 
     Step(
-      function() {
-        var next = this
-        // Check if there's a git repo or not:
-        if (fs.existsSync(workingDir + '/.git')){
-          // Assume that the repo is good and that there are no
-          // local-only commits.
-          // TODO: Maybe fix this?
-          // TODO: This assumes there will never be another repo with the same name :( would be better to clone into dir named after ssh_url
-          var msg = "Updating repo from " + data.repo_ssh_url
-          striderMessage(msg)
-          gitane.run(workingDir, data.repo_config.privkey, 'git reset --hard', function(err, stdout, stderr) {
-            if (err) {
-              striderMessage("[ERROR] Git failure: " + stdout + stderr)
-              return complete(1, null, done)
-            }
-
-            // XXX: `master branch` not guaranteed to exist. how do you find the default branch?
-            gitane.run(workingDir, data.repo_config.privkey, 'git checkout master', function(err, stdout, stderr) {
-              if (err)  {
-                striderMessage("[ERROR] Git failure: " + stdout + stderr)
-                return complete(1, null, done)
-              }
-              gitane.run(workingDir, data.repo_config.privkey, 'git pull', next)
-            })
-          })
-        } else {
-          exec('rm -rf ' + dir + ' ; mkdir -p ' + dir, function(err) {
-            logger.log("cloning %s into %s", data.repo_ssh_url, dir)
-            var msg = "Starting git clone of repo at " + data.repo_ssh_url
-            striderMessage(msg)
-            gitane.run(dir, data.repo_config.privkey, 'git clone --recursive ' + data.repo_ssh_url, next)
-          })
-        }
-      },
+      updateGithubRepo(dir, workingDir, data, striderMessage, complete),
       function(err, stderr, stdout) {
         if (err)  {
           striderMessage("[ERROR] Git failure: " + stdout + stderr)
@@ -500,6 +467,43 @@ var generatePhaseHook = function(cmd, phase){
   return function hook(context, cb) {
     logger.debug("running NO-OP hook for phase: %s", phase)
     cb(0)
+  }
+}
+
+var updateGithubRepo = function(dir, workingDir, data, striderMessage, complete) {
+  return function(){
+    var next = this
+    // Check if there's a git repo or not:
+    if (fs.existsSync(workingDir + '/.git')){
+      // Assume that the repo is good and that there are no
+      // local-only commits.
+      // TODO: Maybe fix this?
+      // TODO: This assumes there will never be another repo with the same name :( would be better to clone into dir named after ssh_url
+      var msg = "Updating repo from " + data.repo_ssh_url
+      striderMessage(msg)
+      gitane.run(workingDir, data.repo_config.privkey, 'git reset --hard', function(err, stdout, stderr) {
+        if (err) {
+          striderMessage("[ERROR] Git failure: " + stdout + stderr)
+          return complete(1, null, done)
+        }
+
+        // XXX: `master branch` not guaranteed to exist. how do you find the default branch?
+        gitane.run(workingDir, data.repo_config.privkey, 'git checkout master', function(err, stdout, stderr) {
+          if (err)  {
+            striderMessage("[ERROR] Git failure: " + stdout + stderr)
+            return complete(1, null, done)
+          }
+          gitane.run(workingDir, data.repo_config.privkey, 'git pull', next)
+        })
+      })
+    } else {
+      exec('rm -rf ' + dir + ' ; mkdir -p ' + dir, function(err) {
+        logger.log("cloning %s into %s", data.repo_ssh_url, dir)
+        var msg = "Starting git clone of repo at " + data.repo_ssh_url
+        striderMessage(msg)
+        gitane.run(dir, data.repo_config.privkey, 'git clone --recursive ' + data.repo_ssh_url, next)
+      })
+    }
   }
 }
 
