@@ -1,32 +1,37 @@
 // Strider Simple Worker
-// Niall O'Higgins 2012
+// Niall O'Higgins, Peter Braden 2013
 //
 // A simple, in-process worker implementation for Strider.
 //
 
 var async = require('async')
-var exec = require('child_process').exec
-var EventEmitter = require('events').EventEmitter
-var gitane = require('gitane')
-var gumshoe = require('gumshoe')
-var path = require('path')
-var spawn = require('child_process').spawn
-var Step = require('step')
-var fs = require('fs')
+  , exec = require('child_process').exec
+  , EventEmitter = require('events').EventEmitter
+  , gitane = require('gitane')
+  , gumshoe = require('gumshoe')
+  , path = require('path')
+  , spawn = require('child_process').spawn
+  , Step = require('step')
+  , fs = require('fs')
 
 
 // Work around npm not being installed on some systems - use own copy
 // the test clause is for Heroku
 var npmCmd = "$(test -x ~/bin/node && echo ~/bin/node || echo node) ../../node_modules/npm/bin/npm-cli.js"
-var nodePrepare = npmCmd + " install"
-var nodeTest = npmCmd + " test"
-var nodeStart = npmCmd + " start"
+  , nodePrepare = npmCmd + " install"
+  , nodeTest = npmCmd + " test"
+  , nodeStart = npmCmd + " start"
 
 // Built-in rules for project-type detection
 var DEFAULT_PROJECT_TYPE_RULES = [
   // Node
-  {filename:"package.json", exists:true, language:"node.js", framework:null, prepare:nodePrepare, test:nodeTest, start:nodeStart},
-]
+  {   filename:"package.json"
+    , exists:true
+    , language:"node.js"
+    , framework:null
+    , prepare:nodePrepare
+    , test:nodeTest
+    , start:nodeStart}]
 
 // detection rules which may be added by worker plugins
 // rules must contain a property *test* which can either be a string or a function taking a callback.
@@ -73,7 +78,7 @@ function processDetectionRules(rules, ctx, cb) {
         })
       })
       return
-    } 
+    }
     processedRules.push(rule)
   })
 
@@ -335,45 +340,22 @@ function registerEvents(emitter) {
         }
 
         var self = this
-
-        var phases = ['prepare', 'test', 'deploy', 'cleanup']
-
-        var f = []
+          , plugins = results
+          , phases = ['prepare', 'test', 'deploy', 'cleanup']
+          , steps = [] // list of functions in order to be run.
 
         var noHerokuYet = true
 
+        // Sort plugins for repo
+        // TODO
         phases.forEach(function(phase) {
-          f.push(function(cb) {
+          steps.push(function(cb) {
             var h = []
 
-            results.concat(buildHooks).forEach(function(result) {
+            plugins.concat(buildHooks).forEach(function(plugin) {
 
-              var hook = function(context, cb) {
-                logger.debug("running NO-OP hook for phase: %s", phase)
-                cb(0)
-              }
+              var hook = generatePhaseHook(plugin[phase]);
 
-
-              // If actions are strings, we assume they are shell commands and try to execute them
-              // directly ourselves.
-              if (typeof(result[phase]) === 'string') {
-                var psh = shellWrap(result[phase])
-                hook = function(context, cb) {
-                  logger.debug("running shell command hook for phase %s: %s", phase, result[phase])
-                  forkProc(workingDir, psh.cmd, psh.args, cb)
-                }
-              }
-
-              // Execution actions may be delegated to functions.
-              // This is useful for example for multi-step things like in Python where a virtual env must be set up.
-              // Functions are of signature function(context, cb)
-              // We assume the function handles any necessary shell interaction and sending of update messages.
-              if (typeof(result[phase]) === 'function') {
-                hook = function(ctx, cb) {
-                  logger.debug("running function hook for phase %s", phase)
-                  result[phase](ctx, cb)
-                }
-              }
 
               // If this job has a Heroku deploy config attached, add a single Heroku deploy function
               if (phase === 'deploy' && data.deploy_config && noHerokuYet ) {
@@ -411,7 +393,7 @@ function registerEvents(emitter) {
             })
           })
         })
-        async.series(f, function(err, results) {
+        async.series(steps, function(err, results) {
             // make sure we run cleanup phase
             if (err && err.phase !== 'cleanup') {
               logger.debug("Failure in phase %s, running cleanup and failing build", err.phase)
@@ -492,3 +474,41 @@ module.exports = function(context, cb, isTest) {
     }
   )
 }
+
+
+var runPhase = function(phase){
+
+}
+
+
+var generatePhaseHook = function(cmd){
+  // If actions are strings, we assume they are shell commands and try to execute them
+  // directly ourselves.
+  if (typeof(cmd) === 'string') {
+    var psh = shellWrap(cmd)
+    return function hook(context, cb) {
+      logger.debug("running shell command hook for phase %s: %s", phase, cmd)
+      forkProc(workingDir, psh.cmd, psh.args, cb)
+    }
+  }
+
+  // Execution actions may be delegated to functions.
+  // This is useful for example for multi-step things like in Python where a 
+  // virtual env must be set up.
+  // Functions are of signature function(context, cb)
+  // We assume the function handles any necessary shell interaction and sending of
+  // update messages.
+  if (typeof(cmd) === 'function') {
+    return function hook(ctx, cb) {
+      logger.debug("running function hook for phase %s", phase)
+      cmd(ctx, cb)
+    }
+  }
+  
+  
+  return function hook(context, cb) {
+    logger.debug("running NO-OP hook for phase: %s", phase)
+    cb(0)
+  }
+}
+
