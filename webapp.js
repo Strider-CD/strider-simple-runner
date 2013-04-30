@@ -64,41 +64,32 @@ function shellWrap(str) {
   return { cmd:"sh", args:["-c", str] }
 }
 
+
 // Pre-process detection rules - some can have properties which are async functions
 function processDetectionRules(rules, ctx, cb) {
   // filename property of detection rules can be a function
-  var processedRules = []
-  var f = []
-  rules.forEach(function(rule) {
-    if (rule.filename && typeof(rule.filename) == 'function') {
-      f.push(function(cb) {
-        rule.filename(ctx, function(err, result) {
-          if (err) return cb(err, {rule: rule, filename: null})
-          return cb(null, {rule: rule, filename: result})
-        })
-      })
-      return
-    }
-    processedRules.push(rule)
-  })
-
-  async.parallel(f, function(err, results) {
-    if (err) return cb(err, null)
-
-    results.forEach(function(res) {
-      res.rule.filename = res.filename
-      processedRules.push(res.rule)
-    })
-    cb(null, processedRules)
-  })
+  async.map(
+      rules
+    , function processRule(rule, rulecb){
+        if (rule.filename && typeof(rule.filename) == 'function') {
+          rule.filename(ctx, function(err, result) {
+            rule.filename = result;
+            return rulecb(err, err ? null : rule)
+          })
+        } else {
+          rulecb(null, rule);
+        }
+      }
+    , function(err, res){
+      cb(err, err ? null : res);
+    });
 }
 
 // Default logger
 logger = {log: console.log, debug: console.debug}
 
+
 function registerEvents(emitter) {
-
-
   // Use an async.queue of concurrency 1 to ensure jobs are processed serially
   var q = async.queue(function(task, cb) {
     processJob(task, cb)
@@ -354,7 +345,7 @@ function registerEvents(emitter) {
 
             plugins.concat(buildHooks).forEach(function(plugin) {
 
-              var hook = generatePhaseHook(plugin[phase]);
+              var hook = generatePhaseHook(plugin[phase], phase);
 
 
               // If this job has a Heroku deploy config attached, add a single Heroku deploy function
@@ -481,7 +472,7 @@ var runPhase = function(phase){
 }
 
 
-var generatePhaseHook = function(cmd){
+var generatePhaseHook = function(cmd, phase){
   // If actions are strings, we assume they are shell commands and try to execute them
   // directly ourselves.
   if (typeof(cmd) === 'string') {

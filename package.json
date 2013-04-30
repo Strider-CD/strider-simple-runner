@@ -25,5 +25,6 @@
   ],
   "scripts": {
     "test": "./node_modules/mocha/bin/mocha -R tap test"
+    ,"test-v": "./node_modules/mocha/bin/mocha"
   }
 }
