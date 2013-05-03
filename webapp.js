@@ -159,20 +159,22 @@ function registerEvents(emitter) {
     function deployHeroku(cwd, app, key, cb) {
       var cmd = 'git remote add heroku git@heroku.com:' + app + '.git'
       gitane.run(cwd, key, cmd, function(err, stdout, stderr) {
-        if (err) return cb(1, null)
         stdoutBuffer += stdout
         stderrBuffer += stderr
         stdmergedBuffer += stdout + stderr
         updateStatus("queue.job_update", {stdout:stdout, stderr:stderr, stdmerged:stdout+stderr})
+        if (err) {
+          striderMessage("Ignoring error adding git remote")
+        }
         cmd = 'git push heroku --force master'
         gitane.run(cwd, key, cmd, function(err, stdout, stderr) {
+          stdoutBuffer += stdout
+          stderrBuffer += stderr
+          stdmergedBuffer += stdout + stderr
           if (err) {
             striderMessage("Deployment to Heroku unsuccessful: %s", stdout+stderr)
             return cb(1, null)
           }
-          stdoutBuffer += stdout
-          stderrBuffer += stderr
-          stdmergedBuffer += stdout + stderr
           updateStatus("queue.job_update", {stdout:stdout, stderr:stderr, stdmerged:stdout+stderr})
           striderMessage("Deployment to Heroku successful.")
           cb(0)
