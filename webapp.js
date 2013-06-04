@@ -88,6 +88,10 @@ function processDetectionRules(rules, ctx, cb) {
   })
 }
 
+// Tasks are discrete properties which plugins may add to each job object.
+// These will be persisted to the database along with the job document.
+// They can be used for example to add machine-readable data to a job - e.g. number of qunit tests which passed/failed
+
 // Default logger
 logger = {log: console.log, debug: console.debug}
 
@@ -133,12 +137,16 @@ function registerEvents(emitter) {
         autodetectResult:opts.autodetectResult || null,
         testExitCode: null,
         deployExitCode: null,
+        tasks: null,
       }
       if (opts.testExitCode !== undefined) {
         msg.testExitCode = opts.testExitCode
       }
       if (opts.deployExitCode !== undefined) {
         msg.deployExitCode = opts.deployExitCode
+      }
+      if (opts.tasks !== undefined) {
+        msg.tasks = opts.tasks
       }
 
       emitter.emit(evType, msg)
@@ -249,13 +257,15 @@ function registerEvents(emitter) {
 
       return proc
     }
-    function complete(testCode, deployCode, cb) {
+    function complete(testCode, deployCode, tasks, cb) {
+      console.log("complete() tasks: %j", tasks)
       updateStatus("queue.job_complete", {
         stderr:stderrBuffer,
         stdout:stdoutBuffer,
         stdmerged:stdmergedBuffer,
         testExitCode:testCode,
-        deployExitCode:deployCode
+        deployExitCode:deployCode,
+        tasks: tasks
       })
       if (typeof(cb) === 'function') cb(null)
     }
@@ -287,14 +297,14 @@ function registerEvents(emitter) {
           gitane.run(workingDir, data.repo_config.privkey, 'git reset --hard', function(err, stdout, stderr) {
             if (err) {
               striderMessage("[ERROR] Git failure: " + stdout + stderr)
-              return complete(1, null, done)
+              return complete(1, null, null, done)
             }
 
             // XXX: `master branch` not guaranteed to exist. how do you find the default branch?
             gitane.run(workingDir, data.repo_config.privkey, 'git checkout master', function(err, stdout, stderr) {
               if (err)  {
                 striderMessage("[ERROR] Git failure: " + stdout + stderr)
-                return complete(1, null, done)
+                return complete(1, null, null, done)
               }
               gitane.run(workingDir, data.repo_config.privkey, 'git pull', next)
             })
@@ -312,7 +322,7 @@ function registerEvents(emitter) {
         if (err)  {
           striderMessage("[ERROR] Git failure: " + stdout + stderr)
           logger.log("[ERROR] Git failure: " + stdout + stderr)
-          return complete(1, null, done)
+          return complete(1, null, null, done)
         }
         var next = this
         updateStatus("queue.job_update", {stdout:stdout, stderr:stderr, stdmerged:stdout+stderr})
@@ -324,7 +334,7 @@ function registerEvents(emitter) {
             var msg = "[ERROR] Could not process detection rules: " + err
             striderMessage(msg)
             logger.log(msg)
-            return complete(1, null, done)
+            return complete(1, null, null, done)
           }
           gumshoe.run(workingDir, rules, next)
         })
@@ -333,7 +343,7 @@ function registerEvents(emitter) {
         if (err)  {
           striderMessage("[ERROR] Gumshoe failure, no detection rules matched: " + err)
           console.log("ERROR: ", err)
-          return complete(1, null, done)
+          return complete(1, null, null, done)
         }
 
         var self = this
@@ -397,32 +407,43 @@ function registerEvents(emitter) {
               }
 
               h.push(function(cb) {
-                hook(context, function(hookExitCode) {
+                hook(context, function(hookExitCode, tasks) {
                   logger.debug("hook for phase %s complete", phase)
                   // Cleanup hooks can't fail
                   if (phase !== 'cleanup' && hookExitCode !== 0 && hookExitCode !== undefined && hookExitCode !== null) {
-                    return cb({phase: phase, code: hookExitCode}, false)
+                    return cb({phase: phase, code: hookExitCode, tasks: tasks}, false)
                   }
-                  cb(null, {phase: phase, code: hookExitCode})
+                  cb(null, {phase: phase, code: hookExitCode, tasks: tasks})
                 })
               })
 
             })
             async.series(h, function(err, results) {
-              cb(err)
+              cb(err, results)
             })
           })
         })
         async.series(f, function(err, results) {
+            console.log("results: %j", results)
+            var tasks = []
             // make sure we run cleanup phase
             if (err && err.phase !== 'cleanup') {
               logger.debug("Failure in phase %s, running cleanup and failing build", err.phase)
               var runCleanup = f[phases.indexOf('cleanup')]
               return runCleanup(function(e) {
-                complete(err.code, null, done)
+                complete(err.code, null, err.tasks, done)
               })
             }
-            return complete(0, null, done)
+            results.forEach(function(r) {
+              r.forEach(function(tr) {
+                if (tr.tasks && Array.isArray(tr.tasks)) {
+                  tasks = tr.tasks.concat(tasks)
+                } else if (tr.tasks && typeof(tr.tasks) === 'object') {
+                  tasks.push(tr.tasks)
+                }
+              })
+            })
+            return complete(0, null, tasks, done)
         })
       }
     )
