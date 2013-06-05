@@ -283,6 +283,8 @@ function registerEvents(emitter) {
       events: new EventEmitter(),
     }
 
+    context.events.setMaxListeners(256)
+
     Step(
       function() {
         var next = this
