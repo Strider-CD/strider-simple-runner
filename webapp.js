@@ -160,6 +160,7 @@ function registerEvents(emitter) {
       stdmergedBuffer += msg
       stdoutBuffer += msg
       updateStatus("queue.job_update", {stdout:msg, stdmerged:msg})
+      console.log("simpleworker >> ", msg)
     }
 
 
