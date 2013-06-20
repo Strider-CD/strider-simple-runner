@@ -342,10 +342,8 @@ function registerEvents(emitter) {
         })
       },
       function(err, result, results) {
-        if (err)  {
-          striderMessage("[ERROR] Gumshoe failure, no detection rules matched: " + err)
-          console.log("ERROR: ", err)
-          return complete(1, null, null, done)
+        if (!results) {
+          results = []
         }
 
         var self = this
