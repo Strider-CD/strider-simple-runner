@@ -14,6 +14,8 @@ var spawn = require('child_process').spawn
 var Step = require('step')
 var fs = require('fs')
 
+var TEST_ONLY = "TEST_ONLY"
+var TEST_AND_DEPLOY = "TEST_AND_DEPLOY"
 
 // Work around npm not being installed on some systems - use own copy
 // the test clause is for Heroku
@@ -288,10 +290,18 @@ function registerEvents(emitter) {
     context.events.setMaxListeners(256)
 
     Step(
+      // git clone / update
       function() {
         var next = this
-        // Check if there's a git repo or not:
-        if (fs.existsSync(workingDir + '/.git')){
+        // First time: no repo exists
+        if (!fs.existsSync(workingDir + '/.git')){
+          exec('rm -rf ' + dir + ' ; mkdir -p ' + dir, function(err) {
+            logger.log("cloning %s into %s", data.repo_ssh_url, dir)
+            var msg = "Starting git clone of repo at " + data.repo_ssh_url
+            striderMessage(msg)
+            gitane.run(dir, data.repo_config.privkey, 'git clone --recursive ' + data.repo_ssh_url, next)
+          })
+        } else { // update the repo
           // Assume that the repo is good and that there are no
           // local-only commits.
           // TODO: Maybe fix this?
@@ -313,15 +323,9 @@ function registerEvents(emitter) {
               gitane.run(workingDir, data.repo_config.privkey, 'git pull', next)
             })
           })
-        } else {
-          exec('rm -rf ' + dir + ' ; mkdir -p ' + dir, function(err) {
-            logger.log("cloning %s into %s", data.repo_ssh_url, dir)
-            var msg = "Starting git clone of repo at " + data.repo_ssh_url
-            striderMessage(msg)
-            gitane.run(dir, data.repo_config.privkey, 'git clone --recursive ' + data.repo_ssh_url, next)
-          })
         }
       },
+      // process plugins
       function(err, stderr, stdout) {
         if (err)  {
           striderMessage("[ERROR] Git failure: " + stdout + stderr)
@@ -351,13 +355,17 @@ function registerEvents(emitter) {
         var self = this
 
         // TODO: rename prepare to install
-        var phases = ['before_install', 'prepare', 'after_install', 'before_test', 'test', 'before_deploy', 'deploy', 'cleanup']
+        var phases = ['before_prepare', 'prepare', 'before_test', 'test', 'before_deploy', 'deploy', 'cleanup']
 
         var f = []
 
         var noHerokuYet = true
 
         phases.forEach(function(phase) {
+          // ?? Also prevent cleanup ??
+          if (data.job_type === TEST_ONLY && (phase === 'before_deploy' || phase === 'deploy')) {
+            return;
+          }
           f.push(function(cb) {
             var h = []
 
