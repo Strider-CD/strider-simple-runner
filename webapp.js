@@ -14,6 +14,8 @@ var spawn = require('child_process').spawn
 var Step = require('step')
 var fs = require('fs')
 
+var TEST_ONLY = "TEST_ONLY"
+var TEST_AND_DEPLOY = "TEST_AND_DEPLOY"
 
 // Work around npm not being installed on some systems - use own copy
 // the test clause is for Heroku
@@ -358,6 +360,10 @@ function registerEvents(emitter) {
         var noHerokuYet = true
 
         phases.forEach(function(phase) {
+          // skip deploy on TEST_ONLY
+          if (data.job_type === TEST_ONLY && phase === 'deploy') {
+            return;
+          }
           f.push(function(cb) {
             var h = []
 
