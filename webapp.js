@@ -21,6 +21,8 @@ var npmCmd = "$(test -x ~/bin/node && echo ~/bin/node || echo node) ../../node_m
 var nodePrepare = npmCmd + " install"
 var nodeTest = npmCmd + " test"
 var nodeStart = npmCmd + " start"
+// get npm for environment
+process.env.PATH += ':' + path.join(__dirname, 'node_modules/.bin');
 
 // Built-in rules for project-type detection
 var DEFAULT_PROJECT_TYPE_RULES = [
