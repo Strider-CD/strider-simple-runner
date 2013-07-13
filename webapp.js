@@ -349,7 +349,7 @@ function registerEvents(emitter) {
 
         var self = this
 
-        var phases = ['before_install', 'install', 'before_test', 'test', 'before_deploy', 'deploy', 'cleanup']
+        var phases = ['before_install', 'install', 'after_install', 'before_test', 'test', 'before_deploy', 'deploy', 'cleanup']
 
         var f = []
 
