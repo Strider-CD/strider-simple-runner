@@ -349,8 +349,7 @@ function registerEvents(emitter) {
 
         var self = this
 
-        // cleanup has become after-script
-        var phases = ['before_install', 'install', 'before_script', 'script', 'after_script', 'deploy', 'cleanup']
+        var phases = ['before_install', 'install', 'before_test', 'test', 'before_deploy', 'deploy', 'cleanup']
 
         var f = []
 
@@ -376,6 +375,19 @@ function registerEvents(emitter) {
                   logger.debug("running shell command hook for phase %s: %s", phase, result[phase])
                   forkProc(workingDir, psh.cmd, psh.args, cb)
                 }
+              } else if (Array.isArray(result[phase])) {
+                // assume it's a list of shell commands
+                var psh = result[phase].map(shellWrap);
+                hook = function(context, cb) {
+                  logger.debug("running shell commands hook for phase %s: %s", phase, result[phase])
+                  var next = function (i) {
+                    forkProc(workingDir, psh[i].cmd, psh[i].args, function (exitCode) {
+                      if (exitCode !== 0 || i + 1 >= psh.length) return cb(exitCode);
+                      next(i + 1);
+                    });
+                  };
+                  next(0);
+                };
               }
 
               // Execution actions may be delegated to functions.
