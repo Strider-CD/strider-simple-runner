@@ -14,6 +14,8 @@ var spawn = require('child_process').spawn
 var Step = require('step')
 var fs = require('fs')
 
+var TEST_ONLY = "TEST_ONLY"
+var TEST_AND_DEPLOY = "TEST_AND_DEPLOY"
 
 // Work around npm not being installed on some systems - use own copy
 // the test clause is for Heroku
@@ -42,7 +44,8 @@ var detectionRules = []
 
 // build hooks which may be added by worker plugins.
 // A build hook is the same as a detection rule, but there is no predicate and it is *always* run on each job.
-// Build hooks consist of an object with optional properties "test", "prepare", "deploy" and "cleanup". 
+// Build hooks consist of an object with optional properties "before_prepare", "prepare", "before_test", "test",
+// "before_deploy", "deploy" and "cleanup".
 // Build hooks are useful for plugins that implement explicit build phases e.g. setting up a BrowserStack tunnel.
 // Plugins can no-op their build hook functions at runtime for repos that do not have them configured, or 
 // don't need them for other reasons.
@@ -289,10 +292,18 @@ function registerEvents(emitter) {
     context.events.setMaxListeners(256)
 
     Step(
+      // git clone / update
       function() {
         var next = this
-        // Check if there's a git repo or not:
-        if (fs.existsSync(workingDir + '/.git')){
+        // First time: no repo exists
+        if (!fs.existsSync(workingDir + '/.git')){
+          exec('rm -rf ' + dir + ' ; mkdir -p ' + dir, function(err) {
+            logger.log("cloning %s into %s", data.repo_ssh_url, dir)
+            var msg = "Starting git clone of repo at " + data.repo_ssh_url
+            striderMessage(msg)
+            gitane.run(dir, data.repo_config.privkey, 'git clone --recursive ' + data.repo_ssh_url, next)
+          })
+        } else { // update the repo
           // Assume that the repo is good and that there are no
           // local-only commits.
           // TODO: Maybe fix this?
@@ -314,15 +325,9 @@ function registerEvents(emitter) {
               gitane.run(workingDir, data.repo_config.privkey, 'git pull', next)
             })
           })
-        } else {
-          exec('rm -rf ' + dir + ' ; mkdir -p ' + dir, function(err) {
-            logger.log("cloning %s into %s", data.repo_ssh_url, dir)
-            var msg = "Starting git clone of repo at " + data.repo_ssh_url
-            striderMessage(msg)
-            gitane.run(dir, data.repo_config.privkey, 'git clone --recursive ' + data.repo_ssh_url, next)
-          })
         }
       },
+      // process plugins
       function(err, stderr, stdout) {
         if (err)  {
           striderMessage("[ERROR] Git failure: " + stdout + stderr)
@@ -351,13 +356,18 @@ function registerEvents(emitter) {
 
         var self = this
 
-        var phases = ['prepare', 'test', 'deploy', 'cleanup']
+        // TODO: rename prepare to install
+        var phases = ['before_prepare', 'prepare', 'before_test', 'test', 'before_deploy', 'deploy', 'cleanup']
 
         var f = []
 
         var noHerokuYet = true
 
         phases.forEach(function(phase) {
+          // ?? Also prevent cleanup ??
+          if (data.job_type === TEST_ONLY && (phase === 'before_deploy' || phase === 'deploy')) {
+            return;
+          }
           f.push(function(cb) {
             var h = []
 
@@ -368,7 +378,6 @@ function registerEvents(emitter) {
                 cb(0)
               }
 
-
               // If actions are strings, we assume they are shell commands and try to execute them
               // directly ourselves.
               if (typeof(result[phase]) === 'string') {
@@ -377,6 +386,19 @@ function registerEvents(emitter) {
                   logger.debug("running shell command hook for phase %s: %s", phase, result[phase])
                   forkProc(workingDir, psh.cmd, psh.args, cb)
                 }
+              } else if (Array.isArray(result[phase])) {
+                // assume it's a list of shell commands
+                var psh = result[phase].map(shellWrap);
+                hook = function(context, cb) {
+                  logger.debug("running shell commands hook for phase %s: %s", phase, result[phase])
+                  var next = function (i) {
+                    forkProc(workingDir, psh[i].cmd, psh[i].args, function (exitCode) {
+                      if (exitCode !== 0 || i + 1 >= psh.length) return cb(exitCode);
+                      next(i + 1);
+                    });
+                  };
+                  next(0);
+                };
               }
 
               // Execution actions may be delegated to functions.
