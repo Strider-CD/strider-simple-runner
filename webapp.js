@@ -349,7 +349,8 @@ function registerEvents(emitter) {
 
         var self = this
 
-        var phases = ['prepare', 'test', 'deploy', 'cleanup']
+        // cleanup has become after-script
+        var phases = ['before_install', 'install', 'before_script', 'script', 'after_script', 'deploy', 'cleanup']
 
         var f = []
 
