@@ -40,7 +40,8 @@ var detectionRules = []
 
 // build hooks which may be added by worker plugins.
 // A build hook is the same as a detection rule, but there is no predicate and it is *always* run on each job.
-// Build hooks consist of an object with optional properties "test", "prepare", "deploy" and "cleanup". 
+// Build hooks consist of an object with optional properties "before_install", "after_install", "before_test",
+// "test", "prepare", "before_deploy", "deploy" and "cleanup".
 // Build hooks are useful for plugins that implement explicit build phases e.g. setting up a BrowserStack tunnel.
 // Plugins can no-op their build hook functions at runtime for repos that do not have them configured, or 
 // don't need them for other reasons.
