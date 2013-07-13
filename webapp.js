@@ -349,7 +349,8 @@ function registerEvents(emitter) {
 
         var self = this
 
-        var phases = ['before_install', 'install', 'after_install', 'before_test', 'test', 'before_deploy', 'deploy', 'cleanup']
+        // TODO: rename prepare to install
+        var phases = ['before_install', 'prepare', 'after_install', 'before_test', 'test', 'before_deploy', 'deploy', 'cleanup']
 
         var f = []
 
@@ -365,7 +366,6 @@ function registerEvents(emitter) {
                 logger.debug("running NO-OP hook for phase: %s", phase)
                 cb(0)
               }
-
 
               // If actions are strings, we assume they are shell commands and try to execute them
               // directly ourselves.
