@@ -362,6 +362,7 @@ function registerEvents(emitter) {
         phases.forEach(function(phase) {
           // skip deploy on TEST_ONLY
           if (data.job_type === TEST_ONLY && phase === 'deploy') {
+            f.push(function(cb) { return cb(null, []); });
             return;
           }
           f.push(function(cb) {
