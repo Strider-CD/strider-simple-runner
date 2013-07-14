@@ -439,7 +439,6 @@ function registerEvents(emitter) {
             if (err && err.phase !== 'cleanup') {
               logger.debug("Failure in phase %s, running cleanup and failing build", err.phase)
               var runCleanup = f[phases.indexOf('cleanup')]
-              if (!runCleanup) return complete(err.code, null, err.tasks, done)
               return runCleanup(function(e) {
                 complete(err.code, null, err.tasks, done)
               })
