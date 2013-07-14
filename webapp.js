@@ -317,11 +317,17 @@ function registerEvents(emitter) {
             })
           })
         } else {
+          data.repo_clone_url = data.repo_ssh_url.replace(':', '/').replace('git@', 'https://');
           exec('rm -rf ' + dir + ' ; mkdir -p ' + dir, function(err) {
             logger.log("cloning %s into %s", data.repo_ssh_url, dir)
             var msg = "Starting git clone of repo at " + data.repo_ssh_url
             striderMessage(msg)
-            gitane.run(dir, data.repo_config.privkey, 'git clone --recursive ' + data.repo_ssh_url, next)
+            gitane.run(dir, data.repo_config.privkey, 'git clone --recursive ' + data.repo_ssh_url, function (err) {
+              if (!err) return next.apply(null, arguments);
+              var msg = "SSH failed; Trying git clone of repo at " + data.repo_clone_url
+              striderMessage(msg)
+              gitane.run(dir, data.repo_config.privkey, 'git clone --recursive ' + data.repo_clone_url, next);
+            })
           })
         }
       },
