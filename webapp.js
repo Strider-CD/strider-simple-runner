@@ -417,14 +417,19 @@ function registerEvents(emitter) {
               }
 
               h.push(function(cb) {
-                hook(context, function(hookExitCode, tasks) {
-                  logger.debug("hook for phase %s complete", phase)
-                  // Cleanup hooks can't fail
-                  if (phase !== 'cleanup' && hookExitCode !== 0 && hookExitCode !== undefined && hookExitCode !== null) {
-                    return cb({phase: phase, code: hookExitCode, tasks: tasks}, false)
-                  }
-                  cb(null, {phase: phase, code: hookExitCode, tasks: tasks})
-                })
+                try {
+                  hook(context, function(hookExitCode, tasks) {
+                    logger.debug("hook for phase %s complete with code %s", phase, hookExitCode)
+                    // Cleanup hooks can't fail
+                    if (phase !== 'cleanup' && hookExitCode !== 0 && hookExitCode !== undefined && hookExitCode !== null && hookExitCode !== false) {
+                      return cb({phase: phase, code: hookExitCode, tasks: tasks}, false)
+                    }
+                    cb(null, {phase: phase, code: hookExitCode, tasks: tasks})
+                  })
+                } catch (e) {
+                  logger.debug('Hook for phase %s failed w/ message: %s, and trace: %s', phase, e.message, e.stack);
+                  cb(e);
+                }
               })
 
             })
