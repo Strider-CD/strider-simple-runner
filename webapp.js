@@ -13,6 +13,7 @@ var path = require('path')
 var spawn = require('child_process').spawn
 var Step = require('step')
 var fs = require('fs')
+var pty = require('pty.js');
 
 var TEST_ONLY = "TEST_ONLY"
 var TEST_AND_DEPLOY = "TEST_AND_DEPLOY"
@@ -229,31 +230,26 @@ function registerEvents(emitter) {
         args = split.slice(1)
       }
       env.PAAS_NAME = 'strider'
-      var proc = spawn(cmd, args, {cwd: cwd, env: env})
+      var proc = pty.spawn(cmd, args, {
+        name: 'xterm-color',
+        cols: 1000,
+        rows: 50,
+        cwd: cwd,
+        env: env
+      })
 
       // per-process output buffers
       proc.stderrBuffer = ""
       proc.stdoutBuffer = ""
       proc.stdmergedBuffer = ""
 
-      proc.stdout.setEncoding('utf8')
-      proc.stderr.setEncoding('utf8')
-
-      proc.stdout.on('data', function(buf) {
+      proc.on('data', function (buf) {
         proc.stdoutBuffer += buf
         proc.stdmergedBuffer += buf
         stdoutBuffer += buf
         stdmergedBuffer += buf
-        updateStatus("queue.job_update" , {stdout:buf})
-      })
-
-      proc.stderr.on('data', function(buf) {
-        proc.stderrBuffer += buf
-        proc.stdmergedBuffer += buf
-        stderrBuffer += buf
-        stdmergedBuffer += buf
-        updateStatus("queue.job_update", {stderr:buf})
-      })
+        updateStatus("queue.job_update", {stdout:buf})
+      });
 
       proc.on('close', function(exitCode) {
         logger.log("process exited with code: %d", exitCode)
@@ -417,14 +413,19 @@ function registerEvents(emitter) {
               }
 
               h.push(function(cb) {
-                hook(context, function(hookExitCode, tasks) {
-                  logger.debug("hook for phase %s complete", phase)
-                  // Cleanup hooks can't fail
-                  if (phase !== 'cleanup' && hookExitCode !== 0 && hookExitCode !== undefined && hookExitCode !== null) {
-                    return cb({phase: phase, code: hookExitCode, tasks: tasks}, false)
-                  }
-                  cb(null, {phase: phase, code: hookExitCode, tasks: tasks})
-                })
+                try {
+                  hook(context, function(hookExitCode, tasks) {
+                    logger.debug("hook for phase %s complete with code %s", phase, hookExitCode)
+                    // Cleanup hooks can't fail
+                    if (phase !== 'cleanup' && hookExitCode !== 0 && hookExitCode !== undefined && hookExitCode !== null && hookExitCode !== false) {
+                      return cb({phase: phase, code: hookExitCode, tasks: tasks}, false)
+                    }
+                    cb(null, {phase: phase, code: hookExitCode, tasks: tasks})
+                  })
+                } catch (e) {
+                  logger.debug('Hook for phase %s failed w/ message: %s, and trace: %s', phase, e.message, e.stack);
+                  cb(e);
+                }
               })
 
             })
