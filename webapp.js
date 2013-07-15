@@ -18,9 +18,7 @@ var pty = require('pty.js');
 var TEST_ONLY = "TEST_ONLY"
 var TEST_AND_DEPLOY = "TEST_AND_DEPLOY"
 
-// Work around npm not being installed on some systems - use own copy
-// the test clause is for Heroku
-var npmCmd = "$(test -x ~/bin/node && echo ~/bin/node || echo node) ../../node_modules/npm/bin/npm-cli.js"
+var npmCmd = "npm"
 var nodePrepare = npmCmd + " install"
 var nodeTest = npmCmd + " test"
 var nodeStart = npmCmd + " start"
@@ -61,7 +59,36 @@ function getDataDir() {
 
 // Wrap a shell command for execution by spawn()
 function shellWrap(str) {
-  return { cmd:"sh", args:["-c", str] }
+  return { cmd: str, args:[] };
+  // return { cmd:"sh", args:["-c", str] }
+}
+
+// spawnPty(cmd, [options], next)
+// Arguments:
+//   options = the options you'd pass to pty.js
+//   next(exitCode)
+function spawnPty(cmd, options, next) {
+  if (arguments.length === 2) {
+    next = options;
+    options = {};
+  }
+  var term = pty.spawn('bash', ['-c', cmd + ' && echo $? || echo $?'], options)
+    , out = ''
+    , first = true;
+  term.on('data', function (data) {
+    if (first) {
+      first = false;
+      return;
+    }
+    out += data;
+  });
+  term.on('close', function () {
+    var exitCode = parseInt(out.trim().split('\r\n').pop());
+    term.destroy();
+    return next(exitCode);
+  });
+  term.write(cmd);
+  return term;
 }
 
 // Pre-process detection rules - some can have properties which are async functions
@@ -161,7 +188,7 @@ function registerEvents(emitter) {
     // This automatically prefixes with "[STRIDER]" to make the source
     // of the message clearer to the user.
     function striderMessage(message) {
-      var msg = "[STRIDER] " + message + "\n"
+      var msg = "\u001b[35m[STRIDER]\u001b[0m " + message + "\n"
       stdmergedBuffer += msg
       stdoutBuffer += msg
       updateStatus("queue.job_update", {stdout:msg, stdmerged:msg})
@@ -224,37 +251,45 @@ function registerEvents(emitter) {
         cwd = cwd.cwd
       }
       if (typeof(cmd) === 'string' && typeof(args) === 'function') {
-        var split = cmd.split(/\s+/)
-        cmd = split[0]
         cb = args
-        args = split.slice(1)
+      } else {
+        cmd += ' ' + args.join(' ');
       }
       env.PAAS_NAME = 'strider'
-      var proc = pty.spawn(cmd, args, {
+      var proc = spawnPty(cmd, {
         name: 'xterm-color',
         cols: 1000,
         rows: 50,
         cwd: cwd,
         env: env
-      })
+      }, function(exitCode) {
+        logger.log("process exited with code: %d", exitCode);
+        cb(exitCode);
+      });
 
       // per-process output buffers
       proc.stderrBuffer = ""
       proc.stdoutBuffer = ""
       proc.stdmergedBuffer = ""
 
+      var first = true;
       proc.on('data', function (buf) {
+        // the first output is just a regurgitation of the input
+        if (first) {
+          first = false;
+          buf = '\u001b[35mstrider $\u001b[0m \u001b[33m' + buf + '\u001b[0m\n';
+          proc.stdoutBuffer += buf
+          proc.stdmergedBuffer += buf
+          stdoutBuffer += buf
+          stdmergedBuffer += buf
+          return;
+        }
         proc.stdoutBuffer += buf
         proc.stdmergedBuffer += buf
         stdoutBuffer += buf
         stdmergedBuffer += buf
         updateStatus("queue.job_update", {stdout:buf})
       });
-
-      proc.on('close', function(exitCode) {
-        logger.log("process exited with code: %d", exitCode)
-        cb(exitCode)
-      })
 
       return proc
     }
@@ -413,19 +448,14 @@ function registerEvents(emitter) {
               }
 
               h.push(function(cb) {
-                try {
-                  hook(context, function(hookExitCode, tasks) {
-                    logger.debug("hook for phase %s complete with code %s", phase, hookExitCode)
-                    // Cleanup hooks can't fail
-                    if (phase !== 'cleanup' && hookExitCode !== 0 && hookExitCode !== undefined && hookExitCode !== null && hookExitCode !== false) {
-                      return cb({phase: phase, code: hookExitCode, tasks: tasks}, false)
-                    }
-                    cb(null, {phase: phase, code: hookExitCode, tasks: tasks})
-                  })
-                } catch (e) {
-                  logger.debug('Hook for phase %s failed w/ message: %s, and trace: %s', phase, e.message, e.stack);
-                  cb(e);
-                }
+                hook(context, function(hookExitCode, tasks) {
+                  logger.debug("hook for phase %s complete with code %s", phase, hookExitCode)
+                  // Cleanup hooks can't fail
+                  if (phase !== 'cleanup' && hookExitCode !== 0 && hookExitCode !== undefined && hookExitCode !== null && hookExitCode !== false) {
+                    return cb({phase: phase, code: hookExitCode, tasks: tasks}, false)
+                  }
+                  cb(null, {phase: phase, code: hookExitCode, tasks: tasks})
+                })
               })
 
             })
