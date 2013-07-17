@@ -6,6 +6,7 @@
 
 var async = require('async')
 var exec = require('child_process').exec
+var extend = require('lodash').extend
 var EventEmitter = require('events').EventEmitter
 var gitane = require('gitane')
 var gumshoe = require('gumshoe')
@@ -223,13 +224,6 @@ function registerEvents(emitter) {
       })
     }
 
-    function mergeObj(src, dst) {
-      var keys = Object.keys(src)
-      for (var i=0; i < keys.length; i++) {
-        dst[keys[i]] = src[keys[i]]
-      }
-    }
-
     //
     // forkProc(cwd, shell, cb)
     // or
@@ -238,16 +232,15 @@ function registerEvents(emitter) {
     // forkProc({opts}, cb)
     //
     function forkProc(cwd, cmd, args, cb) {
-      var env = process.env
-      if (data.repo_config.env !== undefined) {
-        mergeObj(data.repo_config.env, env)
-      }
+      var extras = {}
+      var env = extend(extras, process.env)
+      if (data.repo_config.env !== undefined)
+        env = extend(env, data.repo_config.env)
       if (typeof(cwd) === 'object') {
         cb = cmd
         var cmd = cwd.cmd
         var args = cwd.args
-        // Merge/override any variables
-        mergeObj(cwd.env, env)
+        env = extend(env, cwd.env)
         cwd = cwd.cwd
       }
       if (typeof(cmd) === 'string' && typeof(args) === 'function') {
