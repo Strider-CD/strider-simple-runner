@@ -60,8 +60,7 @@ function getDataDir() {
 
 // Wrap a shell command for execution by spawn()
 function shellWrap(str) {
-  return { cmd: str, args:[] };
-  // return { cmd:"sh", args:["-c", str] }
+  return { cmd:"sh", args:["-c", str] }
 }
 
 // spawnPty(cmd, [options], next)
@@ -234,6 +233,9 @@ function registerEvents(emitter) {
     function forkProc(cwd, cmd, args, cb) {
       var extras = {}
       var env = extend(extras, process.env)
+        , usePty = data.repo_config.pseudo_terminal
+        , proc;
+
       if (data.repo_config.env !== undefined)
         env = extend(env, data.repo_config.env)
       if (typeof(cwd) === 'object') {
@@ -244,45 +246,83 @@ function registerEvents(emitter) {
         cwd = cwd.cwd
       }
       if (typeof(cmd) === 'string' && typeof(args) === 'function') {
-        cb = args
-      } else {
-        cmd += ' ' + args.join(' ');
+        cb = args;
+        args = [];
+        if (!usePty) {
+          args = cmd.split(/\s+/);
+          cmd = args.shift();
+        }
       }
-      env.PAAS_NAME = 'strider'
-      var proc = spawnPty(cmd, {
-        name: 'xterm-color',
-        cols: 1000,
-        rows: 50,
-        cwd: cwd,
-        env: env
-      }, function(exitCode) {
-        logger.log("process exited with code: %d", exitCode);
-        cb(exitCode);
-      });
+      env.PAAS_NAME = 'strider';
+
+      // colored awesome courtesy of pseudo terminal
+      if (usePty) {
+        if (cmd === 'sh' && args.length === 2 && args[0] === '-c') {
+          cmd = args[1];
+          args = [];
+        } else {
+          cmd += ' ' + args.join(' ');
+        }
+        proc = spawnPty(cmd, {
+          name: 'xterm-color',
+          cols: 1000,
+          rows: 50,
+          cwd: cwd,
+          env: env
+        }, function(exitCode) {
+          logger.log("process exited with code: %d", exitCode);
+          cb(exitCode);
+        });
+        var first = true;
+        proc.on('data', function (buf) {
+          // the first output is just a regurgitation of the input
+          if (first) {
+            first = false;
+            buf = '\u001b[35mstrider $\u001b[0m \u001b[33m' + buf + '\u001b[0m\n';
+            proc.stdoutBuffer += buf
+            proc.stdmergedBuffer += buf
+            stdoutBuffer += buf
+            stdmergedBuffer += buf
+            return;
+          }
+          proc.stdoutBuffer += buf
+          proc.stdmergedBuffer += buf
+          stdoutBuffer += buf
+          stdmergedBuffer += buf
+          updateStatus("queue.job_update", {stdout:buf})
+        });
+      } else {
+        proc = spawn(cmd, args, {cwd: cwd, env: env})
+
+        proc.stdout.setEncoding('utf8')
+        proc.stderr.setEncoding('utf8')
+
+        proc.stdout.on('data', function(buf) {
+          proc.stdoutBuffer += buf
+          proc.stdmergedBuffer += buf
+          stdoutBuffer += buf
+          stdmergedBuffer += buf
+          updateStatus("queue.job_update" , {stdout:buf})
+        })
+
+        proc.stderr.on('data', function(buf) {
+          proc.stderrBuffer += buf
+          proc.stdmergedBuffer += buf
+          stderrBuffer += buf
+          stdmergedBuffer += buf
+          updateStatus("queue.job_update", {stderr:buf})
+        })
+
+        proc.on('close', function(exitCode) {
+          logger.log("process exited with code: %d", exitCode)
+          cb(exitCode)
+        });
+      }
 
       // per-process output buffers
       proc.stderrBuffer = ""
       proc.stdoutBuffer = ""
       proc.stdmergedBuffer = ""
-
-      var first = true;
-      proc.on('data', function (buf) {
-        // the first output is just a regurgitation of the input
-        if (first) {
-          first = false;
-          buf = '\u001b[35mstrider $\u001b[0m \u001b[33m' + buf + '\u001b[0m\n';
-          proc.stdoutBuffer += buf
-          proc.stdmergedBuffer += buf
-          stdoutBuffer += buf
-          stdmergedBuffer += buf
-          return;
-        }
-        proc.stdoutBuffer += buf
-        proc.stdmergedBuffer += buf
-        stdoutBuffer += buf
-        stdmergedBuffer += buf
-        updateStatus("queue.job_update", {stdout:buf})
-      });
 
       return proc
     }
