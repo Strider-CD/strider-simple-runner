@@ -233,6 +233,7 @@ function registerEvents(emitter) {
       proc.stderr.setEncoding('utf8')
 
       proc.stdout.on('data', function(buf) {
+        buf = buf.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         proc.stdoutBuffer += buf
         proc.stdmergedBuffer += buf
         stdoutBuffer += buf
