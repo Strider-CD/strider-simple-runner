@@ -198,6 +198,27 @@ describe('worker', function() {
   })
 
   describe('#forkProc', function() {
+    it('should report error exit code', function (done) {
+      mockGumshoeResult = {
+        // Hook for ctx.forkProc
+        prepare: function(ctx, cb) {
+          var proc = ctx.forkProc({cmd:"false", cwd:__dirname, args:[], env:{}}, function(exitCode) {
+          console.log([].slice.call(arguments));
+            expect(exitCode).to.eql(1)
+            done()
+          })
+        },
+      }
+      worker(containerCtx, function(err, z) {
+        containerCtx.emitter.emit('queue.new_job', {
+          repo_ssh_url:"REPO_SSH_URL",
+          repo_config: {
+            privkey: "REPO_CONFIG.PRIVKEY"
+          }
+        })
+      })
+    });
+
     it('should honour environment vars via opts arg', function(done) {
       var key = 'MY_TEST_VAR'
       var val = '12345'

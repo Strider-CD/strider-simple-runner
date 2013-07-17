@@ -10,6 +10,7 @@
     "npm": "~1.2.0",
     "step": "~0.0.5",
     "async": "~0.1.22",
+    "pty.js": "~0.2.2",
     "lodash": "~1.3.1"
   },
   "devDependencies": {
