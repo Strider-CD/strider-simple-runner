@@ -133,7 +133,7 @@ function processDetectionRules(rules, ctx, cb) {
 // Default logger
 logger = {log: console.log, debug: console.debug}
 
-function registerEvents(emitter) {
+function registerEvents(emitter, disablePty) {
 
 
   // Use an async.queue of concurrency 1 to ensure jobs are processed serially
@@ -239,7 +239,7 @@ function registerEvents(emitter) {
     function forkProc(cwd, cmd, args, cb) {
       var extras = {}
       var env = extend(extras, process.env)
-        , usePty = data.repo_config.pseudo_terminal
+        , usePty = !disablePty && data.repo_config.pseudo_terminal
         , proc;
 
       if (data.repo_config.env !== undefined)
@@ -593,7 +593,7 @@ module.exports = function(context, cb, isTest) {
       context.loader.initExtensions(context.extdir, "worker", workerContext, null, this)
     },
     function(err, initialized) {
-      registerEvents(context.emitter)
+      registerEvents(context.emitter, context.config.disablePty)
       logger.log("strider-simple-worker ready")
       cb(null, null)
     }

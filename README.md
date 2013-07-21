@@ -1,6 +1,8 @@
 Strider-simple-worker
 =====================
 
+[![Build Status](https://strider-demo.herokuapp.com/51e0b90c8e11b6f10a000008/Strider-CD/strider-simple-worker/badge)](https://strider-demo.herokuapp.com)
+
 ![Worker Picture](http://farm6.staticflickr.com/5187/5883651745_c17fb322df.jpg)
 
 Easy-to-configure in-process worker implementation for Strider Continous
