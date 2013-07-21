@@ -203,7 +203,6 @@ describe('worker', function() {
         // Hook for ctx.forkProc
         prepare: function(ctx, cb) {
           var proc = ctx.forkProc({cmd:"false", cwd:__dirname, args:[], env:{}}, function(exitCode) {
-          console.log([].slice.call(arguments));
             expect(exitCode).to.eql(1)
             done()
           })

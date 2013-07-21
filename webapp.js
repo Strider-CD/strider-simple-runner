@@ -15,6 +15,7 @@ var spawn = require('child_process').spawn
 var Step = require('step')
 var fs = require('fs')
 var pty = require('pty.js');
+var ansiclean = require('./lib/ansiclean');
 
 var TEST_ONLY = "TEST_ONLY"
 var TEST_AND_DEPLOY = "TEST_AND_DEPLOY"
@@ -83,7 +84,12 @@ function spawnPty(cmd, options, next) {
     out += data;
   });
   term.on('close', function () {
-    var exitCode = parseInt(out.trim().split('\r\n').pop());
+    var lastLine = ansiclean(out.trim().split('\n').pop().trim());
+    var exitCode = parseInt(lastLine);
+    if (isNaN(exitCode)) {
+      logger.log("Warning: [strider-simple-worker] the last line wasn't a number, so I don't know the exit code.", [lastLine]);
+      exitCode = 1;
+    }
     term.destroy();
     return next(exitCode);
   });
@@ -192,7 +198,7 @@ function registerEvents(emitter) {
       stdmergedBuffer += msg
       stdoutBuffer += msg
       updateStatus("queue.job_update", {stdout:msg, stdmerged:msg})
-      console.log("simpleworker >> ", msg)
+      logger.log("simpleworker >> ", msg)
     }
 
 
@@ -271,6 +277,10 @@ function registerEvents(emitter) {
           env: env
         }, function(exitCode) {
           logger.log("process exited with code: %d", exitCode);
+          if (isNaN(exitCode)) {
+            logger.log('Warning: NaN exitCode');
+            exitCode = 1;
+          }
           cb(exitCode);
         });
         var first = true;
@@ -327,7 +337,7 @@ function registerEvents(emitter) {
       return proc
     }
     function complete(testCode, deployCode, tasks, cb) {
-      console.log("complete() tasks: %j", tasks)
+      logger.log("complete() tasks: %j", tasks)
       updateStatus("queue.job_complete", {
         stderr:stderrBuffer,
         stdout:stdoutBuffer,
@@ -498,7 +508,7 @@ function registerEvents(emitter) {
           })
         })
         async.series(f, function(err, results) {
-            console.log("results: %j", results)
+            logger.log("results: %j", results)
             var tasks = []
             // make sure we run cleanup phase
             if (err && err.phase !== 'cleanup') {
