@@ -199,6 +199,7 @@ describe('worker', function() {
 
   describe('#forkProc', function() {
     it('should report error exit code', function (done) {
+      this.timeout(10000)
       mockGumshoeResult = {
         // Hook for ctx.forkProc
         prepare: function(ctx, cb) {
@@ -219,6 +220,7 @@ describe('worker', function() {
     });
 
     it('should honour environment vars via opts arg', function(done) {
+      this.timeout(10000)
       var key = 'MY_TEST_VAR'
       var val = '12345'
       mockGumshoeResult = {
@@ -245,6 +247,7 @@ describe('worker', function() {
     })
 
     it('should honour environment vars via repo_config', function(done) {
+      this.timeout(10000)
       var key = 'MY_TEST_VAR2'
       var val = '54321'
       var env = {}
