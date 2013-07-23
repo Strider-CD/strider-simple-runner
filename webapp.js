@@ -133,16 +133,7 @@ function processDetectionRules(rules, ctx, cb) {
 // Default logger
 logger = {log: console.log, debug: console.debug}
 
-function gitCmd(cwd, privkey, command, next) {
-  if (privkey) {
-    return gitane.run(cwd, privkey, command, next);
-  } else {
-    return exec(command, {cwd: cwd}, next);
-  }
-}
-
 function registerEvents(emitter, disablePty) {
-
 
   // Use an async.queue of concurrency 1 to ensure jobs are processed serially
   var q = async.queue(function(task, cb) {
@@ -237,6 +228,34 @@ function registerEvents(emitter, disablePty) {
       })
     }
 
+    // screencmd: alternate text for display (for privacy). We don't
+    // want to echo the OAuth key, for example.
+    function gitCmd(cwd, privkey, command, screencmd, next) {
+      if (!next && typeof(screencmd) === 'function') {
+        next = screencmd
+        screencmd = null
+      }
+      if (privkey) {
+        var buf = '\u001b[35mstrider $\u001b[0m \u001b[33m' + screencmd + '\u001b[0m\n'
+        updateStatus("queue.job_update", {stdout:buf})
+        return gitane.run(cwd, privkey, command, next)
+      } else {
+        var parts = command.split(' ')
+        try {
+          return forkProc({
+            cwd: cwd,
+            cmd: parts[0],
+            args: parts.slice(1),
+            screencmd: screencmd
+          }, next)
+        } catch (e) {
+          logger.log('fork failed:', e)
+          return next(e)
+        }
+        // execDetached(command, {cwd: cwd}, next);
+      }
+    }
+
     //
     // forkProc(cwd, shell, cb)
     // or
@@ -244,38 +263,44 @@ function registerEvents(emitter, disablePty) {
     // or
     // forkProc({opts}, cb)
     //
+    // extra options:
+    //   env: {} additional env variables
+    //   screencmd: alternate text for display (for privacy). We don't
+    //              want to echo the OAuth key, for example.
     function forkProc(cwd, cmd, args, cb) {
       var extras = {}
       var env = extend(extras, process.env)
         , usePty = !disablePty && data.repo_config.pseudo_terminal
+        , screencmd = null
         , proc;
 
       if (data.repo_config.env !== undefined)
         env = extend(env, data.repo_config.env)
       if (typeof(cwd) === 'object') {
         cb = cmd
-        var cmd = cwd.cmd
-        var args = cwd.args
+        cmd = cwd.cmd
+        args = cwd.args
         env = extend(env, cwd.env)
+        screencmd = cwd.screencmd || null
         cwd = cwd.cwd
       }
       if (typeof(cmd) === 'string' && typeof(args) === 'function') {
-        cb = args;
-        args = [];
+        cb = args
+        args = []
         if (!usePty) {
-          args = cmd.split(/\s+/);
-          cmd = args.shift();
+          args = cmd.split(/\s+/)
+          cmd = args.shift()
         }
       }
-      env.PAAS_NAME = 'strider';
+      env.PAAS_NAME = 'strider'
 
       // colored awesome courtesy of pseudo terminal
       if (usePty) {
         if (cmd === 'sh' && args.length === 2 && args[0] === '-c') {
-          cmd = args[1];
-          args = [];
+          cmd = args[1]
+          args = []
         } else {
-          cmd += ' ' + args.join(' ');
+          cmd += ' ' + args.join(' ')
         }
         proc = spawnPty(cmd, {
           name: 'xterm-color',
@@ -284,33 +309,29 @@ function registerEvents(emitter, disablePty) {
           cwd: cwd,
           env: env
         }, function(exitCode) {
-          logger.log("process exited with code: %d", exitCode);
+          logger.log("process exited with code: %d", exitCode)
           if (isNaN(exitCode)) {
-            logger.log('Warning: NaN exitCode');
-            exitCode = 1;
+            logger.log('Warning: NaN exitCode')
+            exitCode = 1
           }
-          cb(exitCode);
-        });
-        var first = true;
+          cb(exitCode)
+        })
+        var first = true
         proc.on('data', function (buf) {
           // the first output is just a regurgitation of the input
           if (first) {
-            first = false;
-            buf = '\u001b[35mstrider $\u001b[0m \u001b[33m' + buf + '\u001b[0m\n';
-            proc.stdoutBuffer += buf
-            proc.stdmergedBuffer += buf
-            stdoutBuffer += buf
-            stdmergedBuffer += buf
-            return;
+            first = false
+            if (screencmd) buf = screencmd
+            buf = '\u001b[35mstrider $\u001b[0m \u001b[33m' + buf + '\u001b[0m\n'
           }
           proc.stdoutBuffer += buf
           proc.stdmergedBuffer += buf
           stdoutBuffer += buf
           stdmergedBuffer += buf
           updateStatus("queue.job_update", {stdout:buf})
-        });
+        })
       } else {
-        proc = spawn(cmd, args, {cwd: cwd, env: env})
+        proc = spawn(cmd, args, {cwd: cwd, env: env, detached: true})
 
         proc.stdout.setEncoding('utf8')
         proc.stderr.setEncoding('utf8')
@@ -334,7 +355,7 @@ function registerEvents(emitter, disablePty) {
         proc.on('close', function(exitCode) {
           logger.log("process exited with code: %d", exitCode)
           cb(exitCode)
-        });
+        })
       }
 
       // per-process output buffers
@@ -375,23 +396,38 @@ function registerEvents(emitter, disablePty) {
     Step(
       function() {
         var next = this
+        var url = data.repo_ssh_url
+          , screenurl;
+        if (!data.repo_config.privkey) {
+          url = url.replace(':', '/');
+          if (data.github_apikey) {
+            screenurl = url.replace('git@', 'https://[github oauth key]@');
+            url = url.replace('git@', 'https://' + data.github_apikey + '@');
+          } else {
+            url = url.replace('git@', 'https://');
+          }
+        }
         // Check if there's a git repo or not:
         if (fs.existsSync(workingDir + '/.git')){
           // Assume that the repo is good and that there are no
           // local-only commits.
           // TODO: Maybe fix this?
           // TODO: This assumes there will never be another repo with the same name :( would be better to clone into dir named after ssh_url
-          var msg = "Updating repo from " + data.repo_ssh_url
+          var msg = "Updating repo from " + data.repo_config.display_url;
           striderMessage(msg)
+          logger.log('updating from %s', url)
           gitCmd(workingDir, data.repo_config.privkey, 'git reset --hard', function(err, stdout, stderr) {
+            logger.log('dont know how we got here')
             if (err) {
               striderMessage("[ERROR] Git failure: " + stdout + stderr)
               return complete(1, null, null, done)
             }
+            logger.log(new Error().stack)
 
             // XXX: `master branch` not guaranteed to exist. how do you find the default branch?
             gitCmd(workingDir, data.repo_config.privkey, 'git checkout master', function(err, stdout, stderr) {
-              if (err)  {
+              logger.log(new Error().stack)
+              if (err) {
                 striderMessage("[ERROR] Git failure: " + stdout + stderr)
                 return complete(1, null, null, done)
               }
@@ -400,19 +436,18 @@ function registerEvents(emitter, disablePty) {
           })
         } else {
           exec('rm -rf ' + dir + ' ; mkdir -p ' + dir, function(err) {
-            logger.log("cloning %s into %s", data.repo_ssh_url, dir)
-            var url = data.repo_ssh_url;
-            if (!data.repo_config.privkey) {
-              url = url.replace(':', '/').replace('git@', 'https://');
-            }
-            var msg = "Starting git clone of repo at " + url
+            logger.log("cloning %s into %s", url, dir)
+            var msg = "Starting git clone of repo at " + data.repo_config.display_url
             striderMessage(msg)
-            gitCmd(dir, data.repo_config.privkey, 'git clone --recursive ' + url, next)
+            gitCmd(dir, data.repo_config.privkey, 'git clone --recursive ' + url, 'git clone --recursive ' + (screenurl || url), next)
           });
         }
       },
       function(err, stderr, stdout) {
         if (err)  {
+          if (stdout.indexOf('fatal: could not read Username') === 0) {
+            stdout = 'Failed to authenticate. Do you still have read access to this repo?'
+          }
           striderMessage("[ERROR] Git failure: " + stdout + stderr)
           logger.log("[ERROR] Git failure: " + stdout + stderr)
           return complete(1, null, null, done)
