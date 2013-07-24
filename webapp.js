@@ -15,7 +15,7 @@ var spawn = require('child_process').spawn
 var Step = require('step')
 var fs = require('fs')
 var pty = require('pty.js');
-var ansiclean = require('./lib/ansiclean');
+var ansiclean = require('./lib/ansiclean')
 
 var TEST_ONLY = "TEST_ONLY"
 var TEST_AND_DEPLOY = "TEST_AND_DEPLOY"
@@ -75,12 +75,8 @@ function spawnPty(cmd, options, next) {
   }
   var term = pty.spawn('bash', ['-c', cmd + ' && echo $? || echo $?'], options)
     , out = ''
-    , first = true;
   term.on('data', function (data) {
-    if (first) {
-      first = false;
-      return;
-    }
+    logger.log('data', [data])
     out += data;
   });
   term.on('close', function () {
@@ -93,7 +89,6 @@ function spawnPty(cmd, options, next) {
     term.destroy();
     return next(exitCode);
   });
-  term.write(cmd);
   return term;
 }
 
