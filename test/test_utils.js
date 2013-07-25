@@ -126,7 +126,10 @@ describe('utils', function () {
     })
 
     it('should make a forkProc hook if a string is found', function (done) {
-      var callback = function (){}
+      var callback = function (code){
+            expect(code).to.equal(0)
+            done()
+          }
         , command = 'make test'
         , wrapped = cmd.shellWrap(command)
         , cwd = '/'
@@ -134,11 +137,10 @@ describe('utils', function () {
         workingDir: cwd,
         shellWrap: cmd.shellWrap,
         forkProc: function (dir, command, args, next) {
-          expect(next).to.equal(callback)
           expect(dir).to.equal(cwd)
           expect(command).to.equal(wrapped.cmd)
           expect(args).to.eql(wrapped.args)
-          done()
+          next(0)
         }
       }, callback)
     })
