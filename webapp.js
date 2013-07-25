@@ -23,6 +23,5 @@ module.exports = function (context, next, isTest) {
       context.logger.log('Simple Worker ready')
       next()
     })
-  context.logger.log('Simple worker things')
 }
 module.exports.Worker = Worker
