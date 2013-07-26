@@ -56,7 +56,7 @@ var buildHooks = []
 
 // Return path to writeable dir for test purposes
 function getDataDir() {
-  return path.join(__dirname, "_work")
+  return process.env.STRIDER_CLONE_DEST || path.join(__dirname, "_work")
 }
 
 // Wrap a shell command for execution by spawn()
