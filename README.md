@@ -1,7 +1,7 @@
 Strider-simple-worker
 =====================
 
-[![Build Status](https://strider-demo.herokuapp.com/51e0b90c8e11b6f10a000008/Strider-CD/strider-simple-worker/badge)](https://strider-demo.herokuapp.com)
+[![Build Status](https://hosted.stridercd.com/51f050cf04568a0c00000008/strider-cd/strider-simple-worker/badge)](https://hosted.stridercd.com/strider-cd/strider-simple-worker/)
 
 ![Worker Picture](http://farm6.staticflickr.com/5187/5883651745_c17fb322df.jpg)
 
