@@ -10,7 +10,7 @@
     "npm": "~1.2.0",
     "step": "~0.0.5",
     "async": "~0.1.22",
-    "pty.js": "~0.2.2",
+    "pty.js": "git+https://github.com/niallo/pty.js",
     "lodash": "~1.3.1",
     "ansiparse": "0.0.5-1"
   },
