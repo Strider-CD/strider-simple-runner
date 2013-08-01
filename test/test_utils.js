@@ -14,7 +14,7 @@ describe('utils', function () {
 
     it('should make a screen-friendly version without the api key', function () {
       expect(utils.getUrls(repo, false, api_key)).to.eql([
-        'https://' + api_key + '@' + https_end,
+        'https://' + api_key + ':@' + https_end,
         'https://[github oauth key]@' + https_end
       ])
     })
