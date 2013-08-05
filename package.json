@@ -16,7 +16,8 @@
   },
   "devDependencies": {
     "mocha": "~1.6.0",
-    "chai": "~1.7.2"
+    "chai": "~1.7.2",
+    "jshint": "~2.1.9"
   },
   "optionalDependencies": {},
   "engines": {

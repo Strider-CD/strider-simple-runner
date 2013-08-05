@@ -1,9 +1,17 @@
 
 test: lint
-	@mocha -R spec
+	@./node_modules/.bin/mocha -R spec
 
 lint:
-	jshint lib/* webapp.js
+	@./node_modules/.bin/jshint lib/*.js *.js *.json
 
-.PHONY: test lint
+clean:
+	rm -rf node_modules
+
+install:
+	npm install
+
+reload: clean install
+
+.PHONY: test lint clean install reload
 
