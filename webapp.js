@@ -7,7 +7,7 @@ module.exports = function (context, next, isTest) {
     throw new Error('test injection not supported')
   }
   var worker = new Worker({
-    pty: !context.config.disablePty,
+    pty: context.enablePty,
     emitter: context.emitter,
     logger: context.logger
   })
