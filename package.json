@@ -6,8 +6,6 @@
   "homepage": "http://github.com/Strider-CD/strider-simple-worker",
   "dependencies": {
     "gitane": "~0.3.1",
-    "gumshoe": "~0.2.0",
-    "npm": "~1.2.0",
     "step": "~0.0.5",
     "async": "~0.1.22",
     "pty.js": "git+https://github.com/niallo/pty.js",
