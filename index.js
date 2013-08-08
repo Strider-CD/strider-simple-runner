@@ -1,4 +1,4 @@
-var Worker = require('./lib/worker')
+var Runner = require('./lib/worker')
 
 var listen = function(emitter, extensions, opts, cb){
   var worker = new Worker({
@@ -21,5 +21,5 @@ module.exports = {
   listen: listen,
 
   // We expose these for other modules / unit testing
-  Worker : Worker
+  Runner : Runner
 }
