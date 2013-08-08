@@ -1,8 +1,10 @@
-
+/*
 var Worker = require('./lib/worker')
 
 // XXX should we switch to a different way of things?
 module.exports = function (context, next, isTest) {
+  console.log("!!! LOADING SIMPLEWORKER")
+  console.trace()
   if (isTest) {
     throw new Error('test injection not supported')
   }
@@ -25,3 +27,4 @@ module.exports = function (context, next, isTest) {
     })
 }
 module.exports.Worker = Worker
+*/

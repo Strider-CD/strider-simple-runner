@@ -30,6 +30,6 @@
     "test": "./node_modules/mocha/bin/mocha -R tap test"
   },
   "strider": {
-    "worker" : "simple-worker"
+    "runner" : "index.js"
   }
 }
