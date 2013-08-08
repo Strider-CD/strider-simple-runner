@@ -11,10 +11,10 @@ module.exports = function (context, next, isTest) {
     emitter: context.emitter,
     logger: context.logger
   })
-  context.loader.initExtensions(
-    context.extdir, 'worker',
+  context.loader.initWorkerExtensions(
+    context.extdir,
     worker.buildContext(context.config, context.extdir),
-    null, function (err, initialized) {
+    function (err, initialized) {
       if (err) {
         context.logger.warn('Failed to initialize extensions', err.message, err.stack)
         return next(err)
