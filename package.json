@@ -30,7 +30,7 @@
   },
   "strider": {
     "runner" : "index.js"
-  ,}
+  },
   "author": "Niall O'Higgins <niallo@frozenridge.co> (http://frozenridge.co)",
   "contributors": [
     "Peter Braden <peter@frozenridge.co> (http://frozenridge.co)",
