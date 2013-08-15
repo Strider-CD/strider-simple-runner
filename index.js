@@ -17,15 +17,15 @@ var create = function(emitter, opts, cb){
 }
 
 module.exports = {
-  // Strider worker requires:
+  // Strider runner requires:
 
   // function(emitter, opts, cb) -> creates a 'runner' bound to the emitter
   create: create,
     // Must handle events:
     // --> 'job.new' { repo: {...}, job: {...} }
     // --> 'job.cancel' jobid
-    // Events it may emit
-    // --> 'browser.update' (eventname, data)
+    // Events it is expected to emit
+    // --> 'browser.update' eventname, data
     // --> 'job.queued' jobid, time
     // --> 'job.done' { id: jobid, commands: [...], times: {...}, test_status: int, deploy_status: int }
 
