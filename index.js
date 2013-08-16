@@ -3,6 +3,7 @@ var Runner = require('./lib')
 
 var create = function(emitter, opts, cb){
   var runner = new Runner(emitter, opts)
+  runner.attach()
   cb(null)
 }
 
