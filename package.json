@@ -12,7 +12,8 @@
   "devDependencies": {
     "mocha": "~1.6.0",
     "chai": "~1.7.2",
-    "jshint": "~2.1.9"
+    "jshint": "~2.1.9",
+    "expect.js": "~0.2.0"
   },
   "optionalDependencies": {},
   "engines": {
