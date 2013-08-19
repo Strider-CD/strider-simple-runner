@@ -2,7 +2,7 @@ var Runner = require('./lib/worker')
 
 var create = function(emitter, opts, cb){
   var runner = new Runner(emitter, opts)
-  worker.attach()
+  runner.attach()
   cb(null)
 }
 
