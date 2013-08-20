@@ -2,7 +2,7 @@
   "author": "Niall O'Higgins <niallo@frozenridge.co> (http://frozenridge.co)",
   "name": "strider-simple-worker",
   "description": "Simple in-process worker implementation for Strider",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "homepage": "http://github.com/Strider-CD/strider-simple-worker",
   "dependencies": {
     "gitane": "~0.3.1",
