@@ -1,9 +1,20 @@
 var Runner = require('./lib/worker')
+  , loader = require('strider-extension-loader')
 
 var create = function(emitter, opts, cb){
+  console.log(">>>>> RUNNER:: CREATE", arguments)
   var runner = new Runner(emitter, opts)
   runner.attach()
-  cb(null)
+
+  // TEMP - assume all the extensions are loaded. This
+  // will be replaced when we pass the extension config
+  // through in the run events.
+ 
+  var pth = require('path').resolve(__dirname, '..')
+  loader.initWorkerExtensions(pth, runner.buildContext({}, pth), function(){
+    console.log("!!!!! RUNNER CREATE>", arguments)
+    cb(null)
+  })
 }
 
 

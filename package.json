@@ -10,7 +10,8 @@
     "async": "~0.1.22",
     "pty.js": "git+https://github.com/niallo/pty.js",
     "lodash": "~1.3.1",
-    "ansiparse": "0.0.5-1"
+    "ansiparse": "0.0.5-1",
+    "strider-extension-loader" : "0.3.0"
   },
   "devDependencies": {
     "mocha": "~1.6.0",
