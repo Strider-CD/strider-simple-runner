@@ -10,7 +10,7 @@ var create = function(emitter, opts, cb){
   // will be replaced when we pass the extension config
   // through in the run events.
  
-  var pth = require('path').resolve(__dirname, '..')
+  var pth = require.main.paths
   loader.initWorkerExtensions(pth, runner.buildContext({}, pth), function(){
     console.log("!!!!! RUNNER CREATE>", arguments)
     cb(null)
