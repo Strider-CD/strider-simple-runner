@@ -29,6 +29,7 @@ dataDir($HOME/.strider): the directory in which to clone/test/etc
 #### Expected to consume
 
 - 'job.new'
+
 ```
 {
   id: Oid,
