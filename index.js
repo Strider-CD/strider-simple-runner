@@ -1,21 +1,22 @@
 
 var Runner = require('./lib')
-  , Loader = require('strider-extension-loader')
 
-var create = function(emitter, opts, cb){
+var create = function(emitter, config, context, cb){
   console.log(">>>>> RUNNER:: CREATED")
-  var loader = new Loader()
-  var runner = new Runner(emitter, opts)
-  runner.loadExtensions(require.main.paths, cb)
+  var runner = new Runner(emitter, config)
+  runner.loadExtensions(context.extensionPaths, cb)
 }
 
 module.exports = {
   // Strider runner requires:
+  config: {
+    pty: Boolean
+  },
 
   // function(emitter, opts, cb) -> creates a 'runner' bound to the emitter
   create: create,
     // Must handle events:
-    // --> 'job.new' { repo: {...}, job: {...} }
+    // --> 'job.new' (job, ...
     // --> 'job.cancel' jobid
     // Events it is expected to emit
     // <-- 'browser.update' eventname, data
