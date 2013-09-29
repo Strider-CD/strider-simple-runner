@@ -1,10 +1,11 @@
 
 var Runner = require('./lib')
 
-var create = function(emitter, config, context, cb){
-  console.log(">>>>> RUNNER:: CREATED")
+var create = function(emitter, config, context, done){
   var runner = new Runner(emitter, config)
-  runner.loadExtensions(context.extensionPaths, cb)
+  runner.loadExtensions(context.extensionPaths, function (err) {
+    done(err, runner)
+  })
 }
 
 module.exports = {
