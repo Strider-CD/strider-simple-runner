@@ -1,0 +1,15 @@
+<h3>Simple Runner!</h3>
+<p>
+  Jobs are run on the same maching as the main strider instance, in a
+  child process. This is the simplest option, but is also potentially
+  insecure -- an evil test suite could delete your strider instance,
+  etc. <strong>Only test trusted projects</strong> using this
+  runner. For arbitrary projects, check
+  out <a href="https://github.com/Strider-CD/strider-docker-runner">Docker
+  Runner</a>.
+</p>
+<div>
+  <label class="checkbox">
+    <input ng-model="config.pty" type="checkbox" ng-click="save()"> Run jobs in a pseudo-terminal
+  </label>
+</div>
