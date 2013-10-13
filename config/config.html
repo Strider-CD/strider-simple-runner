@@ -9,7 +9,10 @@
   Runner</a>.
 </p>
 <div>
+  <label class="checkbox disabled">
+    <input ng-model="config.pty" disabled type="checkbox" ng-click="save()"> Run jobs in a pseudo-terminal (not available at the moment)
+  </label>
   <label class="checkbox">
-    <input ng-model="config.pty" type="checkbox" ng-click="save()"> Run jobs in a pseudo-terminal
+    <input ng-model="config.useCache" type="checkbox" ng-click="save()"> Cache the project data between runs
   </label>
 </div>

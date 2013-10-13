@@ -11,7 +11,8 @@ var create = function(emitter, config, context, done){
 module.exports = {
   // Strider runner requires:
   config: {
-    pty: Boolean
+    pty: Boolean,
+    useCache: Boolean
   },
 
   // function(emitter, opts, cb) -> creates a 'runner' bound to the emitter
