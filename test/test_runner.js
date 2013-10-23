@@ -16,7 +16,6 @@ describe('Runner', function () {
       logger: {log: function () {}}
     })
   })
-  /*
   it('should listen for job.new', function () {
     io.emit('job.new', {_id: 'jobid', project: {name: 'man'}}, {runner: {id: 'simple-runner'}})
     expect(runner.jobdata.get('jobid')).to.be.ok()
@@ -54,6 +53,7 @@ describe('Runner', function () {
 
   })
 
+  /*
   it('should report up errors', function (done) {
     processJob = function (task, config, next) {
       next(new Error('problems!'))
@@ -82,6 +82,6 @@ describe('Runner', function () {
     })
     runner.queueJob({_id: nid, project: {name: 'hoya'}}, {runner: {id: 'simple-runner'}, plugins: []})
   })
-  */
+ */
 
 })
