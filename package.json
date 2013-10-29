@@ -30,12 +30,10 @@
     "test": "./node_modules/mocha/bin/mocha -R tap test"
   },
   "strider": {
-    "id": "simple-runner",
-    "title": "Default",
     "icon": "icon.png",
     "type": "runner",
     "webapp": "index.js",
-    "config": true
+    "config": false
   },
   "author": "Niall O'Higgins <niallo@frozenridge.co> (http://frozenridge.co)",
   "contributors": [
