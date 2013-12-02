@@ -6,34 +6,44 @@ var expect = require('expect.js')
 
 describe('Runner', function () {
   var runner, io, processing, processJob
-  beforeEach(function () {
+  beforeEach(function (done) {
     processJob = function () { processing = [].slice.call(arguments) }
+
     io = new EventEmitter2()
     runner = new Runner(io, {
-      processJob: function (task, config, next) {
-        processJob(task, config, next)
+      processJob: function (job, provider, providerPlugins, config, next) {
+        processJob.apply(null, arguments)
       },
       logger: {log: function () {}}
     })
+    runner.loadExtensions = function(dirs, done) {
+      this.extensions = {provider:{"test": {init:function() {Array.prototype.slice.call(arguments, 0)[3]()}}}}
+      done(null)
+    }
+    runner.loadExtensions = runner.loadExtensions.bind(runner)
+    runner.loadExtensions([], done)
   })
   it('should listen for job.new', function () {
     io.emit('job.new', {_id: 'jobid', project: {name: 'man'}}, {runner: {id: 'simple-runner'}})
     expect(runner.jobdata.get('jobid')).to.be.ok()
+    runner.queue.tasks.length = 0
   })
   
   describe('with a few queued jobs', function () {
     var ids = ['id1', 'id2', 'id3']
     beforeEach(function () {
-      processJob = function () {}
+      processJob = function () {
+        Array.prototype.slice.call(arguments, 0)[4]()
+      }
       ids.forEach(function (id) {
-        runner.queueJob({_id: id, project: {name: 'man'}}, {runner: {id: 'simple-runner'}, plugins: []})
+        runner.queueJob({_id: id, project: {name: 'man', provider:{id: 'test'}}}, {runner: {id: 'simple-runner'}, plugins: []})
       })
     })
     describe('#cancelJob', function () {
 
       it('should cancel a queued job', function (done) {
-        io.on('job.cancelled', function (id, data) {
-          expect(id).to.equal(ids[1])
+        io.on('job.done', function (job, data) {
+          expect(job.id).to.equal(ids[1])
           expect(runner.queue.length()).to.equal(1)
           done()
         })
