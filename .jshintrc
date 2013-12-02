@@ -6,4 +6,12 @@
   "-W024": false,
   "-W069": false,
   "undef": true
+  "predef": [
+    "describe",
+    "it",
+    "before",
+    "beforeEach",
+    "after",
+    "afterEach"
+  ]
 }

@@ -28,7 +28,31 @@ describe('Runner', function () {
     expect(runner.jobdata.get('jobid')).to.be.ok()
     runner.queue.tasks.length = 0
   })
-  
+
+  it('should have correct options passed through to processJob', function (done) {
+    var runner = new Runner(io, {
+      processJob: function (job, provider, providerPlugins, config, next) {
+        expect(config.cachier).to.be.ok()
+        expect(config.baseDir).to.be.ok()
+        expect(config.dataDir).to.be.ok()
+        expect(config.cacheDir).to.be.ok()
+        expect(config.emitter).to.be.ok()
+        expect(config.io).to.be.ok()
+        expect(config.env).to.be.ok()
+        done()
+      },
+      logger: {log: function () {}}
+    })
+    runner.loadExtensions = function(dirs, complete) {
+      this.extensions = {provider:{"test": {init:function() {Array.prototype.slice.call(arguments, 0)[3]()}}}}
+      complete(null)
+    }
+    runner.loadExtensions = runner.loadExtensions.bind(runner)
+    runner.loadExtensions([], function () {
+      runner.queueJob({_id: 'id1', project: {name: 'man', provider:{id: 'test'}}}, {runner: {id: 'simple-runner'}, plugins: []})
+    })
+  })
+
   describe('with a few queued jobs', function () {
     var ids = ['id1', 'id2', 'id3']
     beforeEach(function () {
