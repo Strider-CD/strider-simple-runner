@@ -36,7 +36,6 @@ describe('Runner', function () {
         expect(config.baseDir).to.be.ok()
         expect(config.dataDir).to.be.ok()
         expect(config.cacheDir).to.be.ok()
-        expect(config.emitter).to.be.ok()
         expect(config.io).to.be.ok()
         expect(config.env).to.be.ok()
         done()
