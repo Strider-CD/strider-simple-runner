@@ -10,7 +10,7 @@
     "eventemitter2": "~0.4.13",
     "strider-runner-core": "~0.1.2",
     "strider-extension-loader": "~0.4.0",
-    "mkdirp": "~0.3.5",
+    "fs-extra": "~0.8.1",
     "dirkeeper": "~0.2.0"
   },
   "devDependencies": {
