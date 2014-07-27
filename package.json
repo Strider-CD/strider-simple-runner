@@ -14,10 +14,10 @@
     "dirkeeper": "~0.2.0"
   },
   "devDependencies": {
-    "mocha": "~1.6.0",
+    "mocha": "^1.21.1",
     "chai": "~1.7.2",
-    "jshint": "~2.1.9",
-    "expect.js": "~0.2.0"
+    "expect.js": "~0.2.0",
+    "jshint": "~2.1.9"
   },
   "optionalDependencies": {},
   "engines": {
