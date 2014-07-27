@@ -14,10 +14,10 @@
     "dirkeeper": "~0.2.0"
   },
   "devDependencies": {
-    "mocha": "~1.6.0",
+    "mocha": "^1.21.1",
     "chai": "~1.7.2",
-    "jshint": "~2.1.9",
-    "expect.js": "~0.2.0"
+    "expect.js": "~0.2.0",
+    "jshint": "~2.1.9"
   },
   "optionalDependencies": {},
   "engines": {
@@ -28,7 +28,8 @@
     "tests"
   ],
   "scripts": {
-    "test": "./node_modules/mocha/bin/mocha -R tap test"
+    "test": "mocha -R tap test",
+    "tdd": "mocha -w test"
   },
   "strider": {
     "id": "simple-runner",
