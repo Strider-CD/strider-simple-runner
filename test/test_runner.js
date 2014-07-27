@@ -54,14 +54,20 @@ describe('Runner', function () {
 
   describe('with a few queued jobs', function () {
     var ids = ['id1', 'id2', 'id3']
-    beforeEach(function () {
+    beforeEach(function (done) {
       processJob = function () {
         Array.prototype.slice.call(arguments, 0)[4]()
       }
       ids.forEach(function (id) {
         runner.queueJob({_id: id, project: {name: 'man', provider:{id: 'test'}}}, {runner: {id: 'simple-runner'}, plugins: []})
       })
+      done();
     })
+
+    afterEach(function () {
+      io.removeAllListeners();
+    });
+
     describe('#cancelJob', function () {
 
       it('should cancel a queued job', function (done) {
