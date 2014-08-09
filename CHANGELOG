@@ -1,0 +1,6 @@
+
+# 0.13.0
+
+The branch config is now passed through to the runner as
+`config.branchConfig`.
+
