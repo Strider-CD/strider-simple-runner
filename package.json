@@ -1,15 +1,15 @@
 {
   "name": "strider-simple-runner",
   "description": "Simple in-process worker implementation for Strider",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "homepage": "http://github.com/Strider-CD/strider-simple-runner",
   "main": "./index.js",
   "dependencies": {
     "async": "~0.1.22",
     "lodash": "~1.3.1",
     "eventemitter2": "~0.4.13",
-    "strider-runner-core": "~0.1.4",
-    "strider-extension-loader": "~0.4.0",
+    "strider-runner-core": "~2.0.0",
+    "strider-extension-loader": "~0.4.3",
     "fs-extra": "~0.8.1",
     "dirkeeper": "~0.2.0"
   },
