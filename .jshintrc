@@ -5,7 +5,7 @@
   "node": true,
   "-W024": false,
   "-W069": false,
-  "undef": true
+  "undef": true,
   "predef": [
     "describe",
     "it",
