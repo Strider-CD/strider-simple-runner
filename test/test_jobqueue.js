@@ -10,6 +10,14 @@ describe('JobQueue', function () {
     handlers = {}
   })
 
+  function makeJob(jid, project, branch) {
+    return {
+      _id: jid,
+      project: project,
+      ref: { branch: branch }
+    }
+  }
+
   // Configure a handler to be updated when handlerDispatch executes a job with an expected ID.
   function expectJobs() {
     function defaultFinish() {
@@ -68,7 +76,7 @@ describe('JobQueue', function () {
     it('executes on push on next tick when unsaturated', function (done) {
       expectJobs(1)
 
-      q.push({ _id: 1 })
+      q.push(makeJob(1, 'foo/bar', 'master'))
 
       q.onNextDrain(function () {
         expect(q.isActive(1)).to.be(true)
@@ -84,11 +92,11 @@ describe('JobQueue', function () {
 
       onEachDrain([
         function () {
-          q.push({ _id: 1 })
+          q.push(makeJob(1, 'foo/bar1', 'master'))
         },
         function () {
           expect(handlers[1].wasCalled).to.be(true)
-          q.push({ _id: 2 })
+          q.push(makeJob(2, 'foo/bar2', 'master'))
         },
         function () {
           expect(handlers[2].wasCalled).to.be(false)
@@ -113,15 +121,15 @@ describe('JobQueue', function () {
 
       onEachDrain([
         function () {
-          q.push({ _id: 1 })
+          q.push(makeJob(1, 'foo/bar1', 'master'))
         },
         function () {
           expect(handlers[1].wasCalled).to.be(true)
-          q.push({ _id: 2 })
+          q.push(makeJob(2, 'foo/bar2', 'master'))
         },
         function () {
           expect(handlers[2].wasCalled).to.be(true)
-          q.push({ _id: 3 })
+          q.push(makeJob(3, 'foo/bar3', 'master'))
         },
         function () {
           // The queue was saturated when job 3 was added. It should not have run yet
@@ -138,6 +146,33 @@ describe('JobQueue', function () {
         handlers[3].finish()
         done()
       })
-    });
+    })
+
+    it('prevents scheduling concurrent jobs on the same branch', function (done) {
+      expectJobs(1, 2)
+
+      onEachDrain([
+        function () {
+          q.push(makeJob(1, 'foo/bar', 'master'))
+        },
+        function () {
+          expect(handlers[1].wasCalled).to.be(true)
+
+          q.push(makeJob(2, 'foo/bar', 'master'))
+        },
+        function () {
+          // Even though the queue is unsaturated, job 2 should not be handled yet, because it's
+          // for the same project and branch as a running job.
+          expect(handlers[2].wasCalled).to.be(false)
+
+          handlers[1].finish()
+        },
+        function () {
+          expect(handlers[2].wasCalled).to.be(true)
+
+          handlers[2].finish()
+        }
+      ], done)
+    })
   })
 })
