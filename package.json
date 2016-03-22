@@ -15,7 +15,8 @@
     "strider-runner-core": "~2.0.0",
     "strider-extension-loader": "~0.4.3",
     "fs-extra": "~0.8.1",
-    "dirkeeper": "~0.2.0"
+    "dirkeeper": "~0.2.0",
+    "json-stable-stringify": "~1.0.1"
   },
   "devDependencies": {
     "mocha": "^1.21.1",
