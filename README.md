@@ -20,6 +20,7 @@ io(new EventEmitter):    the channel of internal communication with the job work
 processJob(core.process):function to run a job. (task, config, ondone)
 pluginDirs:              the directories in which to look for plugins
 dataDir($HOME/.strider): the directory in which to clone/test/etc
+concurrentJobs(1):       maximum number of jobs to execute at once
 ```
 
 ### Events
