@@ -3,7 +3,15 @@
   Jobs are run on the same machine as the main strider instance, in a
   child process. This is the simplest option, but offers no security nor isolation.
   <strong>Only test trusted projects</strong> using this
-  runner.  
+  runner.
   If you need isolation, check out <a href="https://github.com/Strider-CD/strider-docker-runner">Docker
   Runner</a>.
 </p>
+
+<p>
+  Preserve the data directories from
+  <input class="inline-number" type="number" ng-model="config.recentBuilds" placeholder="1">
+  previous builds.
+</p>
+
+<button class="btn btn-primary" ng-click="save()">Save</button>
