@@ -1,9 +1,11 @@
-## Strider-simple-runner
+## strider-simple-runner
 
 ![Worker Picture](http://farm6.staticflickr.com/5187/5883651745_c17fb322df.jpg)
 
 Easy-to-configure in-process runner implementation for Strider Continous
 Deployment. This runner comes bundled with Strider.
+
+[![Build Status](https://travis-ci.org/Strider-CD/strider-simple-runner.svg?branch=master)](https://travis-ci.org/Strider-CD/strider-simple-runner)
 
 ## Spec
 
