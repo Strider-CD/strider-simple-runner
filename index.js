@@ -1,11 +1,11 @@
 var Runner = require('./lib');
 
-var create = function (emitter, config, context, done) {
+function create(emitter, config, context, done) {
   var runner = new Runner(emitter, config);
   runner.loadExtensions(context.extensionPaths, function (err) {
-    done(err, runner)
-  })
-};
+    done(err, runner);
+  });
+}
 
 module.exports = {
   // Strider runner requires:
