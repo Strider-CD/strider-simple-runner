@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "async": "^1.5.2",
+    "debug": "^2.2.0",
     "dirkeeper": "^1.0.0",
     "eventemitter2": "^1.0.3",
     "fs-extra": "^0.30.0",
