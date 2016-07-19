@@ -3,7 +3,7 @@ test: lint
 	@./node_modules/.bin/mocha -R spec
 
 lint:
-	@./node_modules/.bin/jshint lib/*.js *.js *.json
+	@./node_modules/.bin/eslint lib/*.js *.js
 
 clean:
 	rm -rf node_modules
