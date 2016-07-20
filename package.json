@@ -8,6 +8,7 @@
     "type": "git",
     "url": "https://github.com/Strider-CD/strider-simple-runner"
   },
+  "license": "MIT",
   "dependencies": {
     "async": "^1.5.2",
     "debug": "^2.2.0",
@@ -27,14 +28,15 @@
   },
   "optionalDependencies": {},
   "engines": {
-    "node": "*"
+    "node": ">=4.2"
   },
   "keywords": [
     "strider",
     "tests"
   ],
   "scripts": {
-    "test": "mocha -R tap test",
+    "lint": "eslint *.js lib",
+    "test": "npm run lint && mocha -R tap test",
     "tdd": "mocha -w test"
   },
   "strider": {
