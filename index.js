@@ -1,3 +1,5 @@
+'use strict';
+
 var Runner = require('./lib');
 
 function create(emitter, config, context, done) {
