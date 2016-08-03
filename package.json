@@ -1,7 +1,7 @@
 {
   "name": "strider-simple-runner",
   "description": "Simple in-process worker implementation for Strider",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "homepage": "http://github.com/Strider-CD/strider-simple-runner",
   "main": "./index.js",
   "repository": {
