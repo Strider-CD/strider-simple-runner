@@ -10,21 +10,21 @@
   },
   "license": "MIT",
   "dependencies": {
-    "async": "^1.5.2",
-    "debug": "^2.2.0",
+    "async": "^2.5.0",
+    "debug": "^3.0.1",
     "dirkeeper": "^1.0.0",
-    "eventemitter2": "^1.0.3",
-    "fs-extra": "^0.30.0",
+    "eventemitter2": "^4.1.2",
+    "fs-extra": "^4.0.2",
     "json-stable-stringify": "~1.0.1",
     "lodash": "^4.11.1",
     "strider-extension-loader": "~0.4.3",
     "strider-runner-core": "~2.0.0"
   },
   "devDependencies": {
-    "chai": "~1.7.2",
-    "eslint": "^3.1.1",
-    "expect.js": "~0.2.0",
-    "mocha": "^1.21.1"
+    "chai": "~4.1.2",
+    "eslint": "^4.7.2",
+    "expect.js": "~0.3.1",
+    "mocha": "^3.5.3"
   },
   "optionalDependencies": {},
   "engines": {
