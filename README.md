@@ -1,5 +1,7 @@
 ## strider-simple-runner
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/Strider-CD/strider-simple-runner.svg)](https://greenkeeper.io/)
+
 ![Worker Picture](http://farm6.staticflickr.com/5187/5883651745_c17fb322df.jpg)
 
 Easy-to-configure in-process runner implementation for Strider Continous
