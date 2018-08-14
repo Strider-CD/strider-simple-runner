@@ -38,7 +38,8 @@
   "scripts": {
     "lint": "eslint *.js lib",
     "test": "npm run lint && mocha -R tap test",
-    "tdd": "mocha -w test"
+    "tdd": "mocha -w test",
+    "release": "standard-version"
   },
   "strider": {
     "id": "simple-runner",
