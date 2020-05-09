@@ -8,6 +8,12 @@
     "es6": true
   },
   "extends": "eslint:recommended",
+  "globals": {
+    "describe": true,
+    "beforeEach": true,
+    "afterEach": true
+    "it": true
+  },
   "rules": {
     "indent": [2, 2],
     "brace-style": [2, "1tbs"],
@@ -21,7 +27,10 @@
     "no-use-before-define": [2, "nofunc"],
     "no-underscore-dangle": 0,
     "no-constant-condition": 0,
-    "space-before-function-paren": [2, {"anonymous": "always", "named": "never"}],
+    "space-before-function-paren": [
+      2,
+      { "anonymous": "always", "named": "never" }
+    ],
     "func-style": [2, "declaration"]
   }
 }

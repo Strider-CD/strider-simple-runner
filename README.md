@@ -53,6 +53,7 @@ concurrentJobs(1):       maximum number of jobs to execute at once
 ```
 
 Ex: github provider config
+
 ```js
 {
   id: 'github',
@@ -73,6 +74,7 @@ Ex: github provider config
 ```
 
 Ex: git provider config
+
 ```js
 {
   id: 'git',
@@ -122,17 +124,14 @@ Providers:
 - git
 - github
 
-Tests
-=====
+# Tests
 
 Strider-simple-runner comes with tests. To run, simply execute `npm test`.
 
-License
-=======
+# License
 
 Strider-simple-runner is released under a BSD license.
 
-Credits
-=======
+# Credits
 
 Picture of worker ant CC-BY myprofe from http://www.flickr.com/photos/myprofe/5883651745/sizes/m/in/photostream/

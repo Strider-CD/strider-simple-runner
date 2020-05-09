@@ -3,3 +3,4 @@
 !.idea/codeStyleSettings.xml
 
 node_modules/
+yarn-error.log

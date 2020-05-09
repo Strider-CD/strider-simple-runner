@@ -13,7 +13,7 @@ module.exports = {
   // Strider runner requires:
   config: {
     pty: Boolean,
-    useCache: Boolean
+    useCache: Boolean,
   },
 
   // function(emitter, opts, cb) -> creates a 'runner' bound to the emitter
@@ -32,5 +32,5 @@ module.exports = {
   // <-- queue.job_complete
 
   // We expose these for other modules / unit testing
-  Runner: Runner
+  Runner: Runner,
 };
