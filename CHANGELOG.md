@@ -1,6 +1,22 @@
-# Change Log
+# Changelog
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+
+## [2.0.0](https://github.com/Strider-CD/strider-simple-runner/compare/v1.1.0...v2.0.0) (2020-07-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* Drop Node < 10
+
+### Bug Fixes
+
+* Drop Old Node, update deps, use yarn ([0e77886](https://github.com/Strider-CD/strider-simple-runner/commit/0e778861190f2f26004b3402f4d94205d9d5a8d5))
+* emit a job.errored event when processing job and encountering an error ([65b07d7](https://github.com/Strider-CD/strider-simple-runner/commit/65b07d7c46f6e926a3c013e60087a2e035af2e3b))
+* eslint config typo ([d69cff0](https://github.com/Strider-CD/strider-simple-runner/commit/d69cff0c8b79ade0e6ed5bc1d4614afb4c68a391))
+* remove node 4 from travis ([9779f29](https://github.com/Strider-CD/strider-simple-runner/commit/9779f29f40965b9cc4eea37d6fc9135346d2d327))
+* update deps ([6784fcf](https://github.com/Strider-CD/strider-simple-runner/commit/6784fcfa605abf21fe3dc6ddd5d2a2f5e98a6218))
+* upgrade lodash; pending strider dependencies upgrade ([#41](https://github.com/Strider-CD/strider-simple-runner/issues/41)) ([f5f6b0c](https://github.com/Strider-CD/strider-simple-runner/commit/f5f6b0c4001073d298f0ddd6565368eae3ee9c69))
 
 <a name="1.1.0"></a>
 
